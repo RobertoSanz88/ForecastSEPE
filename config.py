@@ -7,9 +7,9 @@
 # Parados o Afiliados mensual por AtributoX 2027-2029 LSTM_v2.ipynb
 LSTM_ATRIBUTO_PARAMS = {
     'grid': {
-        'lags'   : [6, 12],
-        'units'  : [32, 64],
-        'dropout': [0, 0.1],
+        'lags'   : [6],    # [6, 12],
+        'units'  : [32],   # [32, 64],
+        'dropout': [0.1],  # [0, 0.1],
     },
     'epochs': 100,          # fixed — not tuned in grid search
     'val_months': 12,
