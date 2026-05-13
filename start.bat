@@ -17,7 +17,7 @@ if not defined HOST_IP (
 echo Detected IP: %HOST_IP%
 
 set SSL_CERT_FILE=C:\Users\sgei044\certs\caadmin.netskope.crt
-start cmd /k "cd /d "C:\Users\sgei044\Desktop\ML and IA with Python\ForecastSEPE" && set SSL_CERT_FILE=C:\Users\sgei044\certs\caadmin.netskope.crt && C:\Users\sgei044\NP-LSTM-XGBoost\python.exe -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload"
+start cmd /k "cd /d "C:\Users\sgei044\Desktop\ML and IA with Python\ForecastSEPE" && set SSL_CERT_FILE=C:\Users\sgei044\certs\caadmin.netskope.crt && C:\Users\sgei044\NP-LSTM-XGBoost\python.exe -m uvicorn backend.main:app --host 0.0.0.0 --port 8000"
 timeout /t 5 /nobreak
 start "" "http://%HOST_IP%:8000"
 echo Ready at http://%HOST_IP%:8000
