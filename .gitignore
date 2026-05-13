@@ -5,3 +5,6 @@ __pycache__/
 .env
 *.egg-info/
 .venv/
+lightning_logs/
+.ipynb_checkpoints/
+*.xlsx
