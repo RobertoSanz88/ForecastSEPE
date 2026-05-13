@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ForecastSEPE — Observatorio de las Ocupaciones</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800&family=Source+Code+Pro:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.plot.ly/plotly-2.32.0.min.js" charset="utf-8"></script>
+<style>
+:root {
+  --verde-dk:    #00815A;
+  --verde-acc:   #04A06E;
+  --verde-claro: #9BDAC5;
+  --amarillo:    #F3CD00;
+  --cyan:        #008DBE;
+  --azul-marino: #154481;
+  --gris-osc:    #585C5C;
+  --bg:          #F4F6F4;
+  --bg2:         #FFFFFF;
+  --bg3:         #EDF3F0;
+  --border:      #C8DDD6;
+  --text:        #1A2E26;
+  --muted:       #7A9A8E;
+  --sidebar-w:   248px;
+  --header-h:    72px;
+  --font:        'Nunito Sans', Calibri, sans-serif;
+  --mono:        'Source Code Pro', 'Courier New', monospace;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body { font-family: var(--font); color: var(--text); background: var(--bg); display: flex; flex-direction: column; }
+
+/* HEADER */
+header {
+  height: var(--header-h); min-height: var(--header-h);
+  background: var(--verde-dk); display: flex; align-items: center;
+  padding: 0 20px; gap: 12px; z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+}
+.logo {
+  width: 44px; height: 44px; background: var(--amarillo); border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; flex-shrink: 0;
+}
+.header-text h1 { color: #fff; font-size: 24px; font-weight: 800; line-height: 1.2; }
+.header-text p  { color: var(--verde-claro); font-size: 13px; font-weight: 400; }
+.header-badges  { margin-left: auto; display: flex; gap: 6px; }
+.badge {
+  border: 1px solid rgba(255,255,255,0.3); color: rgba(255,255,255,0.85);
+  border-radius: 12px; padding: 2px 10px; font-size: 11px; font-weight: 600;
+}
+
+/* MAIN LAYOUT */
+main { flex: 1; display: flex; overflow: hidden; }
+
+/* SIDEBAR */
+.sidebar {
+  width: var(--sidebar-w); min-width: var(--sidebar-w);
+  background: var(--bg2); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.sidebar-inner { flex: 1; overflow-y: auto; padding: 0 0 4px; }
+.sidebar-inner::-webkit-scrollbar { width: 4px; }
+.sidebar-inner::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.section { padding: 12px 14px 8px; border-bottom: 1px solid var(--border); }
+.section:last-child { border-bottom: none; }
+.section h3 { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+
+/* DROPZONE */
+.dropzone {
+  border: 2px dashed var(--border); border-radius: 8px; background: var(--bg);
+  padding: 8px 10px; text-align: center; cursor: pointer; transition: all .18s;
+  position: relative;
+}
+.dropzone:hover, .dropzone.drag-over { border-color: var(--verde-acc); background: rgba(4,160,110,0.04); }
+.dropzone.success { border-color: var(--verde-dk); border-style: solid; background: rgba(0,129,90,0.05); }
+.dropzone.error   { border-color: #d32f2f; background: rgba(211,47,47,0.05); }
+.dropzone-icon { font-size: 18px; margin-bottom: 3px; }
+.dropzone-text { font-size: 10px; color: var(--muted); line-height: 1.4; }
+.dropzone-hint { font-family: var(--mono); font-size: 10px; color: var(--verde-acc); margin-top: 5px; word-break: break-all; }
+.dropzone-status { font-size: 11px; font-weight: 700; margin-top: 4px; }
+.dropzone-status.ok  { color: var(--verde-dk); }
+.dropzone-status.err { color: #d32f2f; }
+#file-input { display: none; }
+
+/* INFO LINES */
+.info-filename {
+  margin: 8px 14px 0; border-radius: 6px; padding: 7px 10px; font-size: 11px;
+}
+.info-filename {
+  display: block;
+  background: rgba(21,68,129,0.05); border: 1px solid rgba(21,68,129,0.2);
+  margin-top: 6px;
+}
+.info-filename strong { color: var(--azul-marino); display: block; margin-bottom: 3px; }
+.info-filename .fname { font-family: var(--mono); font-size: 10px; color: var(--azul-marino); word-break: break-all; }
+.info-filename .fname .blank { color: var(--border); }
+
+/* METRIC GRID */
+.metric-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 5px; align-items: start;
+}
+.metric-col { display: flex; flex-direction: column; gap: 5px; }
+.metric-btn {
+  border: 1.5px solid var(--border); border-radius: 7px; background: var(--bg);
+  padding: 7px 6px; font-family: var(--font); font-size: 12px; font-weight: 600;
+  color: var(--muted); cursor: pointer; text-align: center; transition: all .15s; line-height: 1.2;
+}
+.metric-btn:hover { border-color: var(--verde-acc); color: var(--verde-dk); }
+.metric-btn.active {
+  border-color: var(--verde-dk); background: rgba(0,129,90,0.08);
+  color: var(--verde-dk); box-shadow: 0 0 0 1px rgba(0,129,90,0.15);
+}
+
+/* TOGGLE PILLS */
+.toggle-pills { display: flex; background: var(--bg); border-radius: 7px; padding: 2px; gap: 2px; }
+.toggle-pill {
+  flex: 1; border: none; border-radius: 5px; padding: 6px 4px; font-family: var(--font);
+  font-size: 11px; font-weight: 700; cursor: pointer; transition: all .15s; background: transparent; color: var(--muted);
+}
+.toggle-pill.active { background: var(--verde-dk); color: #fff; }
+
+/* ATRIBUTO SELECT */
+.atributo-select {
+  width: 100%; margin-top: 6px; border: 1.5px solid var(--border); border-radius: 6px;
+  background: var(--bg2); padding: 6px 8px; font-family: var(--font); font-size: 12px;
+  color: var(--text); cursor: pointer; transition: opacity .15s; outline: none;
+}
+.atributo-select:disabled { opacity: 0.38; cursor: not-allowed; }
+.atributo-select:not(:disabled):focus { border-color: var(--verde-acc); }
+
+/* MODEL CARDS */
+.model-cards { display: flex; flex-direction: column; gap: 5px; }
+.model-card {
+  border: 1.5px solid var(--border); border-radius: 7px; background: var(--bg);
+  padding: 8px 10px; display: flex; align-items: center; gap: 8px;
+  cursor: pointer; transition: all .15s;
+}
+.model-card:hover:not(.disabled) { border-color: var(--verde-acc); }
+.model-card.selected { border-color: var(--verde-dk); background: rgba(0,129,90,0.06); }
+.model-card.disabled { opacity: 0.38; cursor: not-allowed; }
+.model-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.model-info { flex: 1; }
+.model-name { font-size: 12px; font-weight: 700; color: var(--text); }
+.model-badge { font-family: var(--mono); font-size: 9px; font-weight: 600; color: var(--muted); }
+.model-check { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .15s; }
+.model-card.selected .model-check { background: var(--verde-dk); border-color: var(--verde-dk); }
+.model-card.selected .model-check::after { content: '✓'; color: #fff; font-size: 10px; font-weight: 800; }
+.model-note { font-size: 10px; color: var(--muted); font-style: italic; margin-top: 4px; text-align: center; min-height: 14px; }
+
+/* RUN BUTTON */
+.run-section { padding: 12px 14px; border-top: 1px solid var(--border); background: var(--bg2); }
+.run-btn {
+  width: 100%; padding: 10px; border: none; border-radius: 8px;
+  background: var(--verde-dk); color: #fff; font-family: var(--font);
+  font-size: 13px; font-weight: 800; cursor: pointer; transition: all .18s;
+  box-shadow: 0 4px 14px rgba(0,129,90,0.32); letter-spacing: 0.02em;
+}
+.run-btn:hover:not(:disabled) { background: var(--verde-acc); box-shadow: 0 6px 18px rgba(4,160,110,0.38); transform: translateY(-1px); }
+.run-btn:disabled { background: var(--border); color: var(--muted); box-shadow: none; cursor: not-allowed; transform: none; }
+.run-btn.running { background: var(--muted); cursor: not-allowed; }
+
+/* CONTENT AREA */
+.content { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+/* TOOLBAR */
+.toolbar {
+  height: 46px; min-height: 46px; background: var(--bg2);
+  border-bottom: 1px solid var(--border); display: flex;
+  align-items: center; padding: 0 16px; gap: 16px;
+}
+.view-toggle { display: flex; background: var(--bg); border-radius: 6px; padding: 2px; gap: 2px; }
+.view-btn {
+  border: none; border-radius: 4px; padding: 4px 10px; font-family: var(--font);
+  font-size: 11px; font-weight: 700; cursor: pointer; transition: all .15s;
+  background: transparent; color: var(--muted);
+}
+.view-btn.active { background: var(--bg2); color: var(--texto); box-shadow: 0 1px 4px rgba(0,0,0,0.12); }
+.legend { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-left: auto; }
+.legend-item { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--muted); }
+.legend-line { width: 20px; height: 2px; border-radius: 1px; }
+.legend-line.dashed { background: repeating-linear-gradient(90deg, var(--cyan) 0, var(--cyan) 5px, transparent 5px, transparent 9px); height: 2px; }
+.legend-band { width: 16px; height: 8px; background: rgba(155,218,197,0.4); border-radius: 2px; border: 1px solid var(--verde-claro); }
+
+/* CHART AREA */
+.chart-area {
+  flex: 1; display: flex; flex-direction: column;
+  background: var(--bg2); overflow: hidden; position: relative;
+}
+.serie-selector-bar {
+  padding: 6px 16px 0; display: none; align-items: center; gap: 8px;
+}
+.serie-selector-bar label { font-size: 11px; font-weight: 700; color: var(--muted); white-space: nowrap; }
+.serie-selector-bar select {
+  border: 1.5px solid var(--border); border-radius: 5px; background: var(--bg);
+  padding: 4px 8px; font-family: var(--font); font-size: 12px; color: var(--text); outline: none;
+}
+.serie-selector-bar select:focus { border-color: var(--verde-acc); }
+.chart-placeholder {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; color: var(--muted); gap: 10px;
+}
+.chart-placeholder-icon { font-size: 48px; opacity: 0.35; }
+.chart-placeholder p { font-size: 13px; }
+#chart { flex: 1; min-height: 0; display: none; }
+
+/* PROGRESS */
+.progress-section {
+  padding: 8px 16px 10px; border-top: 1px solid var(--border);
+  background: var(--bg3); display: none;
+}
+.progress-labels { display: flex; justify-content: space-between; margin-bottom: 5px; }
+.progress-msg { font-family: var(--mono); font-size: 11px; color: var(--verde-dk); }
+.progress-pct { font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--verde-dk); }
+.progress-track { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.progress-fill {
+  height: 100%; width: 0%; border-radius: 3px; transition: width .4s ease;
+  background: linear-gradient(90deg, var(--verde-dk) 0%, var(--verde-acc) 60%, var(--verde-claro) 100%);
+}
+.progress-fill.running { animation: breathe 2s ease-in-out infinite; }
+@keyframes breathe { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.12); } }
+
+/* FOOTER */
+.footer {
+  padding: 14px 16px; border-top: 1px solid var(--border);
+  background: var(--bg2); display: flex; justify-content: flex-end; gap: 10px;
+  align-items: center;
+}
+.footer-btn {
+  border-radius: 7px; padding: 10px 22px; font-family: var(--font);
+  font-size: 13px; font-weight: 700; cursor: pointer; transition: all .15s;
+}
+.btn-nuevo    { background: var(--bg3); border: 1.5px solid var(--border); color: var(--text); }
+.btn-nuevo:hover { border-color: var(--muted); }
+.btn-ensemble { background: rgba(21,68,129,0.07); border: 1.5px solid var(--azul-marino); color: var(--azul-marino); }
+.btn-ensemble:hover:not(:disabled) { background: rgba(21,68,129,0.14); }
+.btn-excel    { background: rgba(0,129,90,0.08); border: 1.5px solid var(--verde-dk); color: var(--verde-dk); }
+.btn-excel:hover:not(:disabled) { background: rgba(0,129,90,0.15); }
+.footer-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ERROR TOAST */
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: #d32f2f; color: #fff; border-radius: 8px; padding: 10px 18px;
+  font-size: 13px; font-weight: 600; z-index: 9999; display: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25); max-width: 90vw; text-align: center;
+}
+
+/* INPUT MODAL */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+  display: flex; align-items: center; justify-content: center; z-index: 10000;
+}
+.modal-box {
+  background: var(--bg2); border-radius: 12px; padding: 24px 28px;
+  max-width: 420px; width: 92%; box-shadow: 0 8px 32px rgba(0,0,0,0.22);
+}
+.modal-box h4 { font-size: 14px; font-weight: 800; color: var(--text); margin-bottom: 10px; }
+.modal-box p  { font-size: 12px; color: var(--muted); margin-bottom: 14px; line-height: 1.55; }
+.modal-field {
+  width: 100%; border: 1.5px solid var(--border); border-radius: 6px;
+  padding: 8px 10px; font-family: var(--mono); font-size: 13px; color: var(--text);
+  margin-bottom: 16px; outline: none; box-sizing: border-box;
+}
+.modal-field:focus { border-color: var(--verde-acc); }
+.modal-footer { display: flex; justify-content: flex-end; gap: 8px; }
+.modal-btn {
+  border-radius: 6px; padding: 7px 18px; font-family: var(--font);
+  font-size: 12px; font-weight: 700; cursor: pointer; border: none;
+}
+.modal-btn-cancel { background: var(--bg3); border: 1.5px solid var(--border); color: var(--text); }
+.modal-btn-ok     { background: var(--verde-dk); color: #fff; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">📊</div>
+  <div class="header-text">
+    <h1>ForecastSEPE</h1>
+    <p>Observatorio de las Ocupaciones · SEPE</p>
+  </div>
+  <div class="header-badges">
+    <span class="badge">v1.0.0</span>
+    <span class="badge">NP · LSTM · XGB</span>
+  </div>
+</header>
+
+<main>
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <!-- CSV -->
+      <div class="section">
+        <h3>📂 Fichero CSV</h3>
+        <div class="dropzone" id="dropzone">
+          <div class="dropzone-icon">📄</div>
+          <div class="dropzone-text">Arrastra tu CSV aquí<br>o haz clic para seleccionar</div>
+          <div class="dropzone-hint" id="dropzone-hint">Parados desde 2010 estatal.csv</div>
+          <div class="dropzone-status" id="dropzone-status"></div>
+        </div>
+        <input type="file" id="file-input" accept=".csv">
+      </div>
+
+      <!-- EXPECTED FILENAME -->
+      <div class="info-filename" id="info-filename">
+        <strong>📄 Nombre esperado del fichero</strong>
+        <div class="fname" id="expected-fname"></div>
+      </div>
+
+      <!-- METRIC -->
+      <div class="section">
+        <h3>📊 Métrica</h3>
+        <div class="metric-grid">
+          <div class="metric-col">
+            <button class="metric-btn" data-metric="Parados">Parados</button>
+            <button class="metric-btn" data-metric="Afiliados">Afiliados</button>
+            <button class="metric-btn" data-metric="Demandantes">Demandantes</button>
+          </div>
+          <div class="metric-col">
+            <button class="metric-btn" data-metric="Contratos">Contratos</button>
+            <button class="metric-btn" data-metric="P. Contratadas">P. Contratadas</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ÁMBITO -->
+      <div class="section">
+        <h3>🗺️ Ámbito</h3>
+        <div class="toggle-pills">
+          <button class="toggle-pill active" data-modo="estatal">Estatal</button>
+          <button class="toggle-pill" data-modo="atributo">Por atributo</button>
+        </div>
+        <select class="atributo-select" id="atributo-select" disabled>
+          <option value="">Selecciona atributo</option>
+          <option value="CCAA">CCAA</option>
+          <option value="provincias">Provincia</option>
+          <option value="actividades economicas">Actividad Económica</option>
+          <option value="ocupaciones">Ocupación</option>
+        </select>
+      </div>
+
+      <!-- MODELOS -->
+      <div class="section">
+        <h3>🤖 Modelos</h3>
+        <div class="model-cards">
+          <div class="model-card" data-model="NP">
+            <div class="model-dot" style="background:#04A06E"></div>
+            <div class="model-info">
+              <div class="model-name">NeuralProphet</div>
+              <div class="model-badge">NP</div>
+            </div>
+            <div class="model-check"></div>
+          </div>
+          <div class="model-card" data-model="LSTM">
+            <div class="model-dot" style="background:#008DBE"></div>
+            <div class="model-info">
+              <div class="model-name">LSTM</div>
+              <div class="model-badge">LSTM</div>
+            </div>
+            <div class="model-check"></div>
+          </div>
+          <div class="model-card" data-model="XGBoost">
+            <div class="model-dot" style="background:#F3CD00"></div>
+            <div class="model-info">
+              <div class="model-name">XGBoost</div>
+              <div class="model-badge">XGB</div>
+            </div>
+            <div class="model-check"></div>
+          </div>
+        </div>
+        <div class="model-note" id="model-note"></div>
+      </div>
+
+    </div><!-- end sidebar-inner -->
+
+    <div class="run-section">
+      <button class="run-btn" id="run-btn" disabled>▶ Ejecutar Pronóstico</button>
+    </div>
+  </aside>
+
+  <!-- CONTENT -->
+  <section class="content">
+    <div class="toolbar">
+      <div class="view-toggle">
+        <button class="view-btn active" id="btn-con-historico">Con histórico</button>
+        <button class="view-btn" id="btn-solo-pronostico">Solo pronóstico</button>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-line" style="background:#585C5C"></div>Histórico</div>
+        <div class="legend-item"><div class="legend-line" style="background:#04A06E"></div>NeuralProphet</div>
+        <div class="legend-item"><div class="legend-line dashed"></div>LSTM</div>
+        <div class="legend-item"><div class="legend-line" style="background:#F3CD00"></div>XGBoost</div>
+        <div class="legend-item"><div class="legend-line" style="background:#154481"></div>Ensemble</div>
+        <div class="legend-item"><div class="legend-band"></div>IC 95%</div>
+      </div>
+    </div>
+
+    <div class="chart-area">
+      <div class="serie-selector-bar" id="serie-selector-bar">
+        <label>Serie:</label>
+        <select id="serie-select"></select>
+      </div>
+      <div class="chart-placeholder" id="chart-placeholder">
+        <div class="chart-placeholder-icon">📈</div>
+        <p>Carga un CSV y selecciona un modelo para generar el pronóstico</p>
+      </div>
+      <div id="chart"></div>
+    </div>
+
+    <div class="progress-section" id="progress-section">
+      <div class="progress-labels">
+        <span class="progress-msg" id="progress-msg">⚙ Iniciando...</span>
+        <span class="progress-pct" id="progress-pct">0%</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+    </div>
+
+    <div class="footer">
+      <button class="footer-btn btn-nuevo" id="btn-nuevo">🔄 Nuevo pronóstico</button>
+      <button class="footer-btn btn-ensemble" id="btn-ensemble" disabled>⚡ Calcular Ensemble</button>
+      <button class="footer-btn btn-excel" id="btn-excel" disabled>⬇ Exportar Excel</button>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal-overlay" id="input-modal" style="display:none;">
+  <div class="modal-box">
+    <h4>⚠️ CSV con muchas columnas</h4>
+    <p id="modal-prompt"></p>
+    <input class="modal-field" type="text" id="modal-field" placeholder="[1-53]">
+    <div class="modal-footer">
+      <button class="modal-btn modal-btn-cancel" id="modal-cancel">Cancelar</button>
+      <button class="modal-btn modal-btn-ok"     id="modal-ok">Aceptar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONSTANTS ────────────────────────────────────────────────────────────
+const METRIC_GROUP = {
+  'Parados': 'abc', 'Afiliados': 'abc', 'Demandantes': 'abc',
+  'Contratos': 'de', 'P. Contratadas': 'de',
+};
+const MODEL_GROUPS = { 'NP': ['abc','de'], 'LSTM': ['abc'], 'XGBoost': ['de'] };
+const MODEL_COLORS = { 'NP': '#04A06E', 'LSTM': '#008DBE', 'XGBoost': '#F3CD00', 'Ensemble': '#154481' };
+const MODEL_DASHES = { 'LSTM': 'dash' };
+
+// ── STATE ─────────────────────────────────────────────────────────────────
+const S = {
+  csvPath: null, csvFilename: null,
+  metrica: null, anio_inicio: null, modo: 'estatal',
+  atributo: null,
+  selectedModels: new Set(),
+  results: {},          // { 'NP': resultObj, ... }
+  running: false,
+  currentSse: null,
+  showHistorico: true,
+  selectedSerie: null,  // for atributo mode
+  modelQueue: [],
+};
+
+// ── DOM REFS ──────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const dropzone       = $('dropzone');
+const fileInput      = $('file-input');
+const infoFilename   = $('info-filename');
+const expectedFname  = $('expected-fname');
+const runBtn         = $('run-btn');
+const progressSec    = $('progress-section');
+const progressMsg    = $('progress-msg');
+const progressPct    = $('progress-pct');
+const progressFill   = $('progress-fill');
+const chartDiv       = $('chart');
+const chartPlaceholder = $('chart-placeholder');
+const serieSelectorBar = $('serie-selector-bar');
+const serieSelect    = $('serie-select');
+const atributoSelect = $('atributo-select');
+const modelNote      = $('model-note');
+const btnNuevo       = $('btn-nuevo');
+const btnEnsemble    = $('btn-ensemble');
+const btnExcel       = $('btn-excel');
+const btnConHistorico = $('btn-con-historico');
+const btnSoloPronostico = $('btn-solo-pronostico');
+const toast          = $('toast');
+
+// ── HELPERS ───────────────────────────────────────────────────────────────
+function showToast(msg, duration=4000) {
+  toast.textContent = msg;
+  toast.style.display = 'block';
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => toast.style.display = 'none', duration);
+}
+
+function setProgress(pct, msg) {
+  progressSec.style.display = 'block';
+  progressFill.style.width  = pct + '%';
+  progressMsg.textContent   = '⚙ ' + msg;
+  progressPct.textContent   = pct + '%';
+  if (pct < 100) progressFill.classList.add('running');
+  else           progressFill.classList.remove('running');
+}
+
+function hideProgress() {
+  progressSec.style.display = 'none';
+  progressFill.classList.remove('running');
+}
+
+// ── EXPECTED FILENAME ─────────────────────────────────────────────────────
+function buildExpectedFilename() {
+  const m = S.metrica     || null;
+  const y = S.anio_inicio || null;
+  const a = S.modo === 'estatal' ? 'estatal'
+            : S.atributo ? `por ${S.atributo}` : null;
+
+  const part = (val, placeholder) =>
+    val ? `<span>${val}</span>`
+        : `<span class="blank">${placeholder}</span>`;
+
+  expectedFname.innerHTML =
+    part(m, '___') + ' desde ' +
+    part(y, '____') + ' ' +
+    part(a, '______') + '.csv';
+}
+
+// ── AUTO-DETECT INFO LINE ─────────────────────────────────────────────────
+const MONTHS_ES = ['ene.','feb.','mar.','abr.','may.','jun.',
+                   'jul.','ago.','sep.','oct.','nov.','dic.'];
+
+function formatYM(ym) {
+  // 'YYYY-MM' → 'ene. 2026'
+  if (!ym || ym.length < 7) return ym;
+  const m = parseInt(ym.slice(5, 7), 10);
+  const y = ym.slice(0, 4);
+  return `${MONTHS_ES[m - 1]} ${y}`;
+}
+
+// ── METRIC BOXES ──────────────────────────────────────────────────────────
+function updateMetricBoxes() {
+  document.querySelectorAll('.metric-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.metric === S.metrica);
+  });
+}
+
+// ── MODEL AVAILABILITY ────────────────────────────────────────────────────
+function updateModelCards() {
+  const group = S.metrica ? METRIC_GROUP[S.metrica] : null;
+  const notes = [];
+  let lostSelection = false;
+  document.querySelectorAll('.model-card').forEach(card => {
+    const model = card.dataset.model;
+    const available = !group || MODEL_GROUPS[model].includes(group);
+    card.classList.toggle('disabled', !available);
+    if (!available && S.selectedModels.has(model)) {
+      S.selectedModels.delete(model);
+      card.classList.remove('selected');
+      lostSelection = true;
+      if (model === 'XGBoost' && group === 'abc')
+        notes.push('XGBoost no disponible para métricas ABC');
+      if (model === 'LSTM' && group === 'de')
+        notes.push('LSTM no disponible para métricas DE');
+    }
+  });
+  // Auto-select NP if the previously selected model became disabled
+  if (lostSelection && S.selectedModels.size === 0) {
+    S.selectedModels.add('NP');
+    document.querySelector('[data-model="NP"]').classList.add('selected');
+  }
+  modelNote.textContent = notes[0] || '';
+}
+
+// ── MODO TOGGLE ───────────────────────────────────────────────────────────
+function updateModoUI() {
+  document.querySelectorAll('.toggle-pill').forEach(p =>
+    p.classList.toggle('active', p.dataset.modo === S.modo)
+  );
+  atributoSelect.disabled = S.modo === 'estatal';
+  if (S.modo === 'estatal') {
+    S.atributo = null;
+    atributoSelect.value = '';
+  }
+}
+
+// ── RUN BUTTON STATE ──────────────────────────────────────────────────────
+function updateRunBtn() {
+  const ready = S.csvPath && S.metrica && S.selectedModels.size > 0 && !S.running;
+  runBtn.disabled = !ready;
+  runBtn.classList.toggle('running', S.running);
+  runBtn.textContent = S.running
+    ? `⏳ Ejecutando ${[...S.selectedModels].join('+')}...`
+    : '▶ Ejecutar Pronóstico';
+}
+
+// ── FOOTER BUTTONS ────────────────────────────────────────────────────────
+function updateFooterBtns() {
+  const hasResults = Object.keys(S.results).length > 0;
+  const multiResults = Object.keys(S.results).filter(k => k !== 'Ensemble').length >= 2;
+  btnExcel.disabled    = !hasResults || S.running;
+  btnEnsemble.disabled = !multiResults || S.running;
+}
+
+// ── CSV UPLOAD ────────────────────────────────────────────────────────────
+async function handleCsvFile(file) {
+  if (!file || !file.name.toLowerCase().endsWith('.csv')) {
+    setDropzoneError('El fichero debe ser un .csv');
+    return;
+  }
+  $('dropzone-hint').style.display = 'none';
+  $('dropzone-status').textContent = '⏳ Subiendo...';
+  $('dropzone-status').className = 'dropzone-status';
+
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res = await fetch('/upload-csv', { method: 'POST', body: fd });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      setDropzoneError(err.detail || 'Error al subir el CSV');
+      return;
+    }
+    const data = await res.json();
+    S.csvPath        = data.csv_path;
+    S.csvFilename    = data.filename;
+    S.metrica        = data.metrica;
+    S.anio_inicio    = data.anio_inicio;
+    S.modo           = data.modo;
+    S.atributo       = data.atributo;
+
+    dropzone.classList.remove('error');
+    dropzone.classList.add('success');
+    $('dropzone-status').textContent = '✓ ' + file.name;
+    $('dropzone-status').className   = 'dropzone-status ok';
+
+    updateMetricBoxes();
+    updateModelCards();
+    updateModoUI();
+    buildExpectedFilename();
+
+    updateRunBtn();
+  } catch (e) {
+    setDropzoneError('Error de conexión con el servidor');
+  }
+}
+
+function setDropzoneError(msg) {
+  dropzone.classList.add('error');
+  dropzone.classList.remove('success');
+  $('dropzone-hint').style.display = '';
+  $('dropzone-status').textContent = '✗ ' + msg;
+  $('dropzone-status').className   = 'dropzone-status err';
+}
+
+// ── DRAG & DROP ───────────────────────────────────────────────────────────
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+dropzone.addEventListener('dragleave', ()  => dropzone.classList.remove('drag-over'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('drag-over');
+  handleCsvFile(e.dataTransfer.files[0]);
+});
+dropzone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => handleCsvFile(fileInput.files[0]));
+
+// ── METRIC CLICK ──────────────────────────────────────────────────────────
+document.querySelectorAll('.metric-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    S.metrica = btn.dataset.metric;
+    updateMetricBoxes();
+    updateModelCards();
+    buildExpectedFilename();
+
+    updateRunBtn();
+  });
+});
+
+// ── MODO TOGGLE ───────────────────────────────────────────────────────────
+document.querySelectorAll('.toggle-pill').forEach(pill => {
+  pill.addEventListener('click', () => {
+    S.modo = pill.dataset.modo;
+    updateModoUI();
+    buildExpectedFilename();
+
+    updateRunBtn();
+  });
+});
+atributoSelect.addEventListener('change', () => {
+  S.atributo = atributoSelect.value || null;
+  buildExpectedFilename();
+});
+
+// ── MODEL CARDS ───────────────────────────────────────────────────────────
+document.querySelectorAll('.model-card').forEach(card => {
+  card.addEventListener('click', () => {
+    if (card.classList.contains('disabled') || S.running) return;
+    const m = card.dataset.model;
+    if (S.selectedModels.has(m)) S.selectedModels.delete(m);
+    else S.selectedModels.add(m);
+    card.classList.toggle('selected', S.selectedModels.has(m));
+    updateRunBtn();
+  });
+});
+
+// ── VIEW TOGGLE ───────────────────────────────────────────────────────────
+btnConHistorico.addEventListener('click', () => {
+  S.showHistorico = true;
+  btnConHistorico.classList.add('active');
+  btnSoloPronostico.classList.remove('active');
+  renderChart();
+});
+btnSoloPronostico.addEventListener('click', () => {
+  S.showHistorico = false;
+  btnSoloPronostico.classList.add('active');
+  btnConHistorico.classList.remove('active');
+  renderChart();
+});
+
+// ── SERIE SELECTOR (atributo mode) ────────────────────────────────────────
+serieSelect.addEventListener('change', () => {
+  S.selectedSerie = serieSelect.value || null;
+  renderChart();
+});
+
+// ── RUN FORECAST ──────────────────────────────────────────────────────────
+runBtn.addEventListener('click', () => {
+  if (S.running || !S.csvPath || !S.metrica || S.selectedModels.size === 0) return;
+  // Clear previous results except Ensemble
+  S.results = {};
+  S.selectedSerie = null;
+  S.modelQueue = [...S.selectedModels].filter(m => m !== 'Ensemble');
+  startNextModel();
+});
+
+function startNextModel() {
+  if (S.modelQueue.length === 0) {
+    onAllDone();
+    return;
+  }
+  const modelo = S.modelQueue.shift();
+  S.running = true;
+  updateRunBtn();
+  updateFooterBtns();
+  setProgress(0, `Iniciando ${modelo}...`);
+
+  const params = new URLSearchParams({
+    metrica:  S.metrica,
+    modo:     S.modo,
+    modelo:   modelo,
+    csv_path: S.csvPath,
+  });
+  if (S.modo === 'atributo' && S.atributo) params.set('atributo', S.atributo);
+
+  const sse = new EventSource('/run-forecast?' + params.toString());
+  S.currentSse = sse;
+
+  sse.onmessage = e => {
+    let msg;
+    try { msg = JSON.parse(e.data); } catch { return; }
+
+    if (msg.type === 'progress') {
+      setProgress(msg.percent, `[${modelo}] ${msg.message}`);
+
+    } else if (msg.type === 'result') {
+      S.results[modelo] = msg.data;
+      if (msg.data.modo === 'atributo' && msg.data.series) {
+        const keys = Object.keys(msg.data.series);
+        if (!S.selectedSerie) S.selectedSerie = keys[0];
+        serieSelect.innerHTML = keys.map(k =>
+          `<option value="${k}"${k === S.selectedSerie ? ' selected' : ''}>${k}</option>`
+        ).join('');
+        serieSelectorBar.style.display = 'flex';
+      } else {
+        serieSelectorBar.style.display = 'none';
+      }
+      renderChart();
+
+    } else if (msg.type === 'input_required') {
+      showInputModal(msg.job_id, msg.prompt);
+
+    } else if (msg.type === 'error') {
+      showToast('Error: ' + msg.message);
+
+    } else if (msg.type === 'done') {
+      sse.close();
+      S.running = false;
+      S.currentSse = null;
+      setProgress(100, `${modelo} completado.`);
+      setTimeout(() => {
+        if (S.modelQueue.length > 0) startNextModel();
+        else onAllDone();
+      }, 600);
+    }
+  };
+
+  sse.onerror = () => {
+    sse.close();
+    S.running = false;
+    S.currentSse = null;
+    showToast('Error de conexión SSE. Comprueba que el servidor está activo.');
+    updateRunBtn();
+    updateFooterBtns();
+    hideProgress();
+  };
+}
+
+function onAllDone() {
+  S.running = false;
+  updateRunBtn();
+  updateFooterBtns();
+  setTimeout(hideProgress, 1500);
+  if (S.csvPath) {
+    fetch('/cleanup-csv', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({csv_path: S.csvPath}),
+    }).catch(() => {});
+  }
+}
+
+// ── CHART ─────────────────────────────────────────────────────────────────
+function getSeriesData(result) {
+  if (result.modo === 'atributo' && result.series) {
+    const key = S.selectedSerie || Object.keys(result.series)[0];
+    const s = result.series[key] || {};
+    return { historico: s.historico, pronostico: s.pronostico, ic: s.intervalo_confianza };
+  }
+  return { historico: result.historico, pronostico: result.pronostico, ic: result.intervalo_confianza };
+}
+
+function renderChart() {
+  const resultKeys = Object.keys(S.results);
+  if (resultKeys.length === 0) {
+    chartDiv.style.display = 'none';
+    chartPlaceholder.style.display = 'flex';
+    return;
+  }
+  chartPlaceholder.style.display = 'none';
+  chartDiv.style.display = 'block';
+
+  const primaryResult = S.results[resultKeys[0]];
+  const { historico, pronostico, ic } = getSeriesData(primaryResult);
+
+  const traces = [];
+
+  // IC band (fill between)
+  if (ic && ic.superior && ic.inferior) {
+    const xUp  = ic.superior.map(d => d.fecha);
+    const yUp  = ic.superior.map(d => d.valor);
+    const xDn  = ic.inferior.map(d => d.fecha).slice().reverse();
+    const yDn  = ic.inferior.map(d => d.valor).slice().reverse();
+    traces.push({
+      x: [...xUp, ...xDn], y: [...yUp, ...yDn],
+      name: 'IC 95%', type: 'scatter', fill: 'toself', mode: 'lines',
+      fillcolor: 'rgba(155,218,197,0.22)',
+      line: { color: '#9BDAC5', dash: 'dot', width: 1 },
+      hoverinfo: 'skip', showlegend: true,
+    });
+  }
+
+  // Historical
+  if (S.showHistorico && historico) {
+    traces.push({
+      x: historico.map(d => d.fecha), y: historico.map(d => d.valor),
+      name: 'Histórico', type: 'scatter', mode: 'lines',
+      line: { color: '#585C5C', width: 2 },
+      fill: 'tozeroy', fillcolor: 'rgba(88,92,92,0.06)',
+    });
+  }
+
+  // Model forecasts
+  resultKeys.forEach(modelo => {
+    const { pronostico: pron } = getSeriesData(S.results[modelo]);
+    if (!pron) return;
+    traces.push({
+      x: pron.map(d => d.fecha), y: pron.map(d => d.valor),
+      name: modelo, type: 'scatter', mode: 'lines',
+      line: {
+        color: MODEL_COLORS[modelo] || '#333',
+        width: 2.5,
+        dash: MODEL_DASHES[modelo] || 'solid',
+      },
+    });
+  });
+
+  // Shapes: vertical cut line
+  const shapes = [];
+  if (historico && historico.length) {
+    const cutDate = historico[historico.length - 1].fecha;
+    shapes.push({
+      type: 'line', x0: cutDate, x1: cutDate, y0: 0, y1: 1, yref: 'paper',
+      line: { color: '#04A06E', dash: 'dot', width: 1.5 },
+    });
+  }
+
+  // Annotations: max historical point
+  const annotations = [];
+  if (S.showHistorico && historico && historico.length) {
+    const maxPt = historico.reduce((a, b) => b.valor > a.valor ? b : a);
+    annotations.push({
+      x: maxPt.fecha, y: maxPt.valor,
+      text: '▲ ' + maxPt.valor.toLocaleString('es-ES'),
+      bgcolor: '#F3CD00', bordercolor: '#F3CD00', borderpad: 3, borderwidth: 0,
+      font: { size: 10, color: '#1A2E26', family: "'Source Code Pro', monospace" },
+      showarrow: true, arrowhead: 2, arrowsize: 0.8, arrowcolor: '#F3CD00',
+      ax: 0, ay: -28,
+    });
+  }
+
+  // Title
+  const modoLabel = primaryResult.modo === 'estatal' ? 'Estatal'
+                    : `${primaryResult.atributo || 'Por atributo'}${S.selectedSerie ? ' · ' + S.selectedSerie : ''}`;
+  const histRange = historico && historico.length
+    ? `${historico[0].fecha.slice(0,4)}–${historico[historico.length-1].fecha.slice(0,4)}` : '';
+  const pronArr = pronostico || (Object.values(S.results)[0] && getSeriesData(Object.values(S.results)[0]).pronostico);
+  const pronRange = pronArr && pronArr.length
+    ? `${formatYM(pronArr[0].fecha)}–${formatYM(pronArr[pronArr.length-1].fecha)}` : '';
+  const titleText = `${primaryResult.metrica} — ${modoLabel}` +
+    (histRange ? ` | Histórico ${histRange}` : '') +
+    (pronRange ? ` · Pronóstico ${pronRange}` : '');
+
+  // xaxis range
+  const xRange = [];
+  if (!S.showHistorico && pronArr && pronArr.length) {
+    xRange.push(pronArr[0].fecha, pronArr[pronArr.length-1].fecha);
+  }
+
+  const layout = {
+    title: { text: titleText, font: { family: "'Source Code Pro', monospace", size: 13, color: '#04A06E' }, x: 0.01, xanchor: 'left' },
+    paper_bgcolor: '#FFFFFF', plot_bgcolor: '#FFFFFF',
+    shapes, annotations,
+    xaxis: { gridcolor: '#EDF3F0', tickfont: { size: 11 }, ...(xRange.length ? { range: xRange } : {}) },
+    yaxis: { gridcolor: '#EDF3F0', tickformat: ',.0f', tickfont: { size: 11 } },
+    legend: { orientation: 'h', y: -0.18, font: { size: 11 } },
+    margin: { l: 75, r: 20, t: 48, b: 40 },
+    hovermode: 'x unified',
+    autosize: true,
+  };
+
+  Plotly.react('chart', traces, layout, { responsive: true, displaylogo: false,
+    modeBarButtonsToRemove: ['lasso2d','select2d','autoScale2d'] });
+}
+
+// ── ENSEMBLE ──────────────────────────────────────────────────────────────
+btnEnsemble.addEventListener('click', () => {
+  const modelKeys = Object.keys(S.results).filter(k => k !== 'Ensemble');
+  if (modelKeys.length < 2) return;
+
+  const primary = S.results[modelKeys[0]];
+  const isAtributo = primary.modo === 'atributo';
+
+  if (!isAtributo) {
+    const refPron = primary.pronostico;
+    const pronostico = refPron.map((d, i) => {
+      const avg = modelKeys.reduce((s, k) => s + (S.results[k].pronostico[i]?.valor || 0), 0) / modelKeys.length;
+      return { fecha: d.fecha, valor: Math.round(avg) };
+    });
+    S.results['Ensemble'] = { ...primary, modelo: 'Ensemble', pronostico };
+    renderChart();
+    updateFooterBtns();
+  } else {
+    // Ensemble per CCAA
+    const firstSeries = primary.series;
+    const ensembleSeries = {};
+    Object.keys(firstSeries).forEach(ccaa => {
+      const refPron = firstSeries[ccaa].pronostico;
+      const pronostico = refPron.map((d, i) => {
+        const avg = modelKeys.reduce((s, k) => {
+          return s + (S.results[k].series?.[ccaa]?.pronostico?.[i]?.valor || 0);
+        }, 0) / modelKeys.length;
+        return { fecha: d.fecha, valor: Math.round(avg) };
+      });
+      ensembleSeries[ccaa] = { ...firstSeries[ccaa], pronostico };
+    });
+    S.results['Ensemble'] = { ...primary, modelo: 'Ensemble', series: ensembleSeries };
+    renderChart();
+    updateFooterBtns();
+  }
+});
+
+// ── EXPORT EXCEL ──────────────────────────────────────────────────────────
+btnExcel.addEventListener('click', async () => {
+  const resultKeys = Object.keys(S.results);
+  if (resultKeys.length === 0) return;
+
+  const primary = S.results[resultKeys[0]];
+  const { historico } = getSeriesData(primary);
+
+  const series = resultKeys.map(modelo => {
+    const { pronostico, ic } = getSeriesData(S.results[modelo]);
+    return {
+      modelo,
+      pronostico: pronostico || [],
+      ic_superior: ic?.superior || null,
+      ic_inferior: ic?.inferior || null,
+    };
+  });
+
+  const body = {
+    metrica: primary.metrica,
+    modo: primary.modo,
+    atributo: S.selectedSerie || primary.atributo,
+    historico: historico || [],
+    series,
+  };
+
+  try {
+    const res = await fetch('/export-excel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) { showToast('Error al generar el Excel'); return; }
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const cd   = res.headers.get('Content-Disposition') || '';
+    const fnMatch = cd.match(/filename="([^"]+)"/);
+    a.download = fnMatch ? fnMatch[1] : `Pronostico_${primary.metrica}.xlsx`;
+    a.href = url;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    showToast('Error de conexión al exportar');
+  }
+});
+
+// ── NUEVO PRONÓSTICO ──────────────────────────────────────────────────────
+btnNuevo.addEventListener('click', () => {
+  if (S.currentSse) { S.currentSse.close(); S.currentSse = null; }
+  S.csvPath = null; S.csvFilename = null;
+  S.metrica = null; S.anio_inicio = null;
+  S.modo = 'estatal'; S.atributo = null;
+  S.selectedModels.clear(); S.results = {};
+  S.running = false; S.selectedSerie = null; S.modelQueue = [];
+
+  // Reset UI
+  dropzone.classList.remove('success','error');
+  $('dropzone-status').textContent = '';
+  $('dropzone-status').className   = 'dropzone-status';
+  $('dropzone-hint').style.display = '';
+  fileInput.value = '';
+
+  document.querySelectorAll('.metric-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.model-card').forEach(c => { c.classList.remove('selected','disabled'); });
+  S.selectedModels.clear();
+  // Re-select NP by default
+  S.selectedModels.add('NP');
+  document.querySelector('[data-model="NP"]').classList.add('selected');
+  S.modo = 'estatal'; updateModoUI();
+  modelNote.textContent = '';
+  serieSelectorBar.style.display = 'none';
+
+  chartDiv.style.display = 'none';
+  chartPlaceholder.style.display = 'flex';
+  hideProgress();
+
+  buildExpectedFilename();
+  updateRunBtn();
+  updateFooterBtns();
+});
+
+// ── INPUT MODAL ───────────────────────────────────────────────────────────
+let _modalJobId = null;
+
+function showInputModal(jobId, prompt) {
+  _modalJobId = jobId;
+  $('modal-prompt').textContent = prompt;
+  $('modal-field').value = '';
+  $('input-modal').style.display = 'flex';
+  setTimeout(() => $('modal-field').focus(), 50);
+}
+
+async function submitModalInput() {
+  const value = $('modal-field').value.trim();
+  if (!value || !_modalJobId) return;
+  $('input-modal').style.display = 'none';
+  try {
+    await fetch('/provide-input', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ job_id: _modalJobId, value }),
+    });
+  } catch {
+    showToast('Error enviando el rango al servidor');
+  }
+  _modalJobId = null;
+}
+
+$('modal-ok').addEventListener('click', submitModalInput);
+$('modal-field').addEventListener('keydown', e => { if (e.key === 'Enter') submitModalInput(); });
+$('modal-cancel').addEventListener('click', () => {
+  $('input-modal').style.display = 'none';
+  _modalJobId = null;
+});
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+// NP selected by default
+S.selectedModels.add('NP');
+document.querySelector('[data-model="NP"]').classList.add('selected');
+buildExpectedFilename();
+updateRunBtn();
+updateFooterBtns();
+</script>
+</body>
+</html>
