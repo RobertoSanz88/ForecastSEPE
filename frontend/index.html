@@ -210,6 +210,40 @@ main { flex: 1; display: flex; overflow: hidden; }
 .chart-placeholder p { font-size: 13px; }
 #chart { flex: 1; min-height: 0; display: none; }
 
+/* CHART MAIN ROW + RESULTS PANEL */
+.chart-main-row { flex: 1; display: flex; overflow: hidden; min-height: 0; }
+.chart-content  { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.results-panel {
+  width: 210px; min-width: 210px;
+  background: var(--bg2); border-left: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden;
+  padding: 14px 12px; gap: 0;
+}
+.results-panel::-webkit-scrollbar { width: 4px; }
+.results-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.rp-title { font-family: var(--mono); font-size: 10px; font-weight: 700; color: var(--verde-dk); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+.rp-last-card { margin-bottom: 10px; }
+.rp-last-label { font-size: 9px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+.rp-last-val  { font-family: var(--mono); font-size: 20px; font-weight: 700; color: var(--text); line-height: 1.1; }
+.rp-last-date { font-size: 10px; color: var(--muted); margin-top: 1px; }
+.rp-model-card { border-left: 3px solid; padding: 6px 0 6px 8px; margin-bottom: 8px; }
+.rp-model-label { font-size: 9px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+.rp-model-row { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.rp-model-val { font-family: var(--mono); font-size: 17px; font-weight: 700; line-height: 1.1; }
+.rp-var { font-size: 10px; font-weight: 700; }
+.rp-var-up   { color: #04A06E; }
+.rp-var-down { color: #d32f2f; }
+.rp-separator { height: 1px; background: var(--border); margin: 10px 0; }
+.rp-mape-box { background: var(--bg3); border-radius: 8px; padding: 10px; }
+.rp-mape-item { margin-bottom: 8px; }
+.rp-mape-item:last-child { margin-bottom: 0; }
+.rp-mape-row { display: flex; align-items: center; gap: 5px; margin-bottom: 3px; }
+.rp-medal { width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; color: #fff; flex-shrink: 0; }
+.rp-mape-name { flex: 1; font-size: 11px; font-weight: 600; color: var(--text); }
+.rp-mape-val  { font-family: var(--mono); font-size: 11px; font-weight: 700; }
+.rp-mape-bar-track { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.rp-mape-bar-fill  { height: 100%; border-radius: 2px; transition: width .3s ease; }
+
 /* PROGRESS */
 .progress-section {
   padding: 8px 16px 10px; border-top: 1px solid var(--border);
@@ -406,11 +440,29 @@ main { flex: 1; display: flex; overflow: hidden; }
         <label>Serie:</label>
         <select id="serie-select"></select>
       </div>
-      <div class="chart-placeholder" id="chart-placeholder">
-        <div class="chart-placeholder-icon">📈</div>
-        <p>Carga un CSV y selecciona un modelo para generar el pronóstico</p>
+      <div class="chart-main-row">
+        <div class="chart-content">
+          <div class="chart-placeholder" id="chart-placeholder">
+            <div class="chart-placeholder-icon">📈</div>
+            <p>Carga un CSV y selecciona un modelo para generar el pronóstico</p>
+          </div>
+          <div id="chart"></div>
+        </div>
+        <div class="results-panel" id="results-panel" style="display:none">
+          <div class="rp-title">📊 Resultados</div>
+          <div class="rp-last-card">
+            <div class="rp-last-label">Último dato real</div>
+            <div class="rp-last-val" id="rp-last-val">—</div>
+            <div class="rp-last-date" id="rp-last-date">—</div>
+          </div>
+          <div id="rp-model-cards"></div>
+          <div class="rp-separator" id="rp-separator" style="display:none"></div>
+          <div class="rp-mape-box" id="rp-mape-section" style="display:none">
+            <div class="rp-title">🎯 Precisión (MAPE)</div>
+            <div id="rp-mape-list"></div>
+          </div>
+        </div>
       </div>
-      <div id="chart"></div>
     </div>
 
     <div class="progress-section" id="progress-section">
@@ -450,8 +502,8 @@ const METRIC_GROUP = {
   'Parados': 'abc', 'Afiliados': 'abc', 'Demandantes': 'abc',
   'Contratos': 'de', 'P. Contratadas': 'de',
 };
-const MODEL_GROUPS = { 'NP': ['abc','de'], 'LSTM': ['abc'], 'XGBoost': ['de'] };
-const MODEL_COLORS = { 'NP': '#04A06E', 'LSTM': '#008DBE', 'XGBoost': '#F3CD00', 'Ensemble': '#154481' };
+const MODEL_GROUPS  = { 'NP': ['abc','de'], 'LSTM': ['abc'], 'XGBoost': ['de'] };
+const MODEL_COLORS  = { 'NP': '#04A06E', 'LSTM': '#008DBE', 'XGBoost': '#F3CD00', 'Ensemble': '#154481' };
 const MODEL_DASHES = { 'LSTM': 'dash' };
 
 // ── STATE ─────────────────────────────────────────────────────────────────
@@ -570,7 +622,11 @@ function updateMetricBoxes() {
 
 // ── MODEL AVAILABILITY ────────────────────────────────────────────────────
 function updateModelCards() {
-  const group = S.metrica ? METRIC_GROUP[S.metrica] : null;
+  // Búsqueda case-insensitive: el nombre en el CSV puede diferir en mayúsculas
+  const metricaKey = S.metrica
+    ? Object.keys(METRIC_GROUP).find(k => k.toLowerCase() === S.metrica.toLowerCase())
+    : null;
+  const group = metricaKey ? METRIC_GROUP[metricaKey] : null;
   const notes = [];
   let lostSelection = false;
   document.querySelectorAll('.model-card').forEach(card => {
@@ -848,12 +904,29 @@ function startNextModel() {
 
     } else if (msg.type === 'result') {
       S.results[modelo] = msg.data;
-      if (msg.data.modo === 'atributo') {
-        // El selector de series ya fue inicializado en el upload; solo asegurar visibilidad
+      if (msg.data.modo === 'atributo' && msg.data.series) {
         serieSelectorBar.style.display = 'flex';
-        if (!S.selectedSerie && msg.data.series) {
-          S.selectedSerie = Object.keys(msg.data.series)[0] || null;
+        // Sincronizar S.historico y el selector con las columnas que el script procesó
+        // (puede diferir de las del upload cuando el CSV tiene >53 columnas y el usuario eligió un rango)
+        const validKeys = Object.keys(msg.data.series);
+        if (S.historico && !Array.isArray(S.historico)) {
+          const filtered = {};
+          for (const k of validKeys) {
+            if (S.historico[k] !== undefined) filtered[k] = S.historico[k];
+          }
+          if (Object.keys(filtered).length > 0) {
+            S.historico = filtered;
+            serieSelect.innerHTML = validKeys
+              .filter(k => filtered[k] !== undefined)
+              .map(k => `<option value="${k}"${k === S.selectedSerie ? ' selected' : ''}>${k}</option>`)
+              .join('');
+            if (!validKeys.includes(S.selectedSerie)) {
+              S.selectedSerie = validKeys[0] || null;
+              serieSelect.value = S.selectedSerie || '';
+            }
+          }
         }
+        if (!S.selectedSerie) S.selectedSerie = validKeys[0] || null;
       }
       renderChart();  // pinta la línea del modelo recién terminado, sin borrar las anteriores
 
@@ -908,6 +981,82 @@ function getSeriesData(result) {
     return { historico: s.historico, pronostico: s.pronostico, ic: s.intervalo_confianza };
   }
   return { historico: result.historico, pronostico: result.pronostico, ic: result.intervalo_confianza };
+}
+
+function renderResultsPanel() {
+  const resultKeys = Object.keys(S.results);
+  const panel = $('results-panel');
+  if (resultKeys.length === 0) { panel.style.display = 'none'; return; }
+  const wasHidden = panel.style.display !== 'flex';
+  panel.style.display = 'flex';
+  if (wasHidden) setTimeout(() => Plotly.Plots.resize($('chart')), 100);
+
+  // Último dato real
+  const historico = getHistoricoSerie();
+  const lastReal  = historico?.length ? historico[historico.length - 1] : null;
+  $('rp-last-val').textContent  = lastReal?.valor != null
+    ? Math.round(lastReal.valor).toLocaleString('es-ES') : '—';
+  $('rp-last-date').textContent = lastReal?.fecha ? formatYM(lastReal.fecha) : '—';
+
+  // Tarjetas de modelos
+  const cardsEl = $('rp-model-cards');
+  cardsEl.innerHTML = '';
+  for (const modelo of resultKeys) {
+    const { pronostico } = getSeriesData(S.results[modelo]);
+    const lastPron = pronostico?.length ? pronostico[pronostico.length - 1] : null;
+    const color    = MODEL_COLORS[modelo] || '#666';
+    const label    = `${modelo} · ${lastPron?.fecha ? formatYM(lastPron.fecha) : '—'}`;
+    const valStr   = lastPron?.valor != null ? Math.round(lastPron.valor).toLocaleString('es-ES') : '—';
+    let varHTML = '';
+    if (lastReal?.valor != null && lastPron?.valor != null && lastReal.valor !== 0) {
+      const pct  = (lastPron.valor - lastReal.valor) / Math.abs(lastReal.valor) * 100;
+      const sign = pct >= 0 ? '▲' : '▼';
+      const cls  = pct >= 0 ? 'rp-var-up' : 'rp-var-down';
+      varHTML = `<span class="rp-var ${cls}">${sign} ${Math.abs(pct).toFixed(1)}%</span>`;
+    }
+    const card = document.createElement('div');
+    card.className = 'rp-model-card';
+    card.style.borderLeftColor = color;
+    card.innerHTML = `
+      <div class="rp-model-label">${label}</div>
+      <div class="rp-model-row">
+        <span class="rp-model-val" style="color:${color}">${valStr}</span>
+        ${varHTML}
+      </div>`;
+    cardsEl.appendChild(card);
+  }
+
+  // MAPE ranking
+  const mapeData = resultKeys
+    .filter(m => S.results[m].mape != null)
+    .map(m => ({ modelo: m, mape: S.results[m].mape }))
+    .sort((a, b) => a.mape - b.mape);
+  const sepEl  = $('rp-separator');
+  const mapeEl = $('rp-mape-section');
+  if (mapeData.length === 0) { sepEl.style.display = 'none'; mapeEl.style.display = 'none'; return; }
+  sepEl.style.display = ''; mapeEl.style.display = '';
+  const maxMape   = Math.max(...mapeData.map(d => d.mape));
+  const medalCols = ['#04A06E', '#154481', '#F3CD00'];
+  const mapeListEl = $('rp-mape-list');
+  mapeListEl.innerHTML = '';
+  mapeData.forEach((d, i) => {
+    const color      = MODEL_COLORS[d.modelo] || '#666';
+    const mapeColor  = d.mape < 5 ? '#04A06E' : d.mape <= 10 ? '#D4A800' : '#d32f2f';
+    const barPct     = maxMape > 0 ? (d.mape / maxMape * 100).toFixed(0) : 0;
+    const medalColor = i < 3 ? medalCols[i] : '#aaa';
+    const item = document.createElement('div');
+    item.className = 'rp-mape-item';
+    item.innerHTML = `
+      <div class="rp-mape-row">
+        <span class="rp-medal" style="background:${medalColor}">${i + 1}</span>
+        <span class="rp-mape-name">${d.modelo}</span>
+        <span class="rp-mape-val" style="color:${mapeColor}">${d.mape.toFixed(1)}%</span>
+      </div>
+      <div class="rp-mape-bar-track">
+        <div class="rp-mape-bar-fill" style="width:${barPct}%;background:${color}"></div>
+      </div>`;
+    mapeListEl.appendChild(item);
+  });
 }
 
 function renderChart() {
@@ -1031,6 +1180,7 @@ function renderChart() {
 
   Plotly.react('chart', traces, layout, { responsive: true, displaylogo: false,
     modeBarButtonsToRemove: ['lasso2d','select2d','autoScale2d'] });
+  renderResultsPanel();
 }
 
 // ── ENSEMBLE ──────────────────────────────────────────────────────────────
@@ -1047,7 +1197,10 @@ btnEnsemble.addEventListener('click', () => {
       const avg = modelKeys.reduce((s, k) => s + (S.results[k].pronostico[i]?.valor || 0), 0) / modelKeys.length;
       return { fecha: d.fecha, valor: Math.round(avg) };
     });
-    S.results['Ensemble'] = { ...primary, modelo: 'Ensemble', pronostico };
+    const ensembleMape = modelKeys.every(k => S.results[k].mape != null)
+      ? parseFloat((modelKeys.reduce((s, k) => s + S.results[k].mape, 0) / modelKeys.length).toFixed(2))
+      : null;
+    S.results['Ensemble'] = { ...primary, modelo: 'Ensemble', pronostico, mape: ensembleMape };
     renderChart();
     updateFooterBtns();
   } else {
@@ -1064,7 +1217,10 @@ btnEnsemble.addEventListener('click', () => {
       });
       ensembleSeries[ccaa] = { ...firstSeries[ccaa], pronostico };
     });
-    S.results['Ensemble'] = { ...primary, modelo: 'Ensemble', series: ensembleSeries };
+    const ensembleMape = modelKeys.every(k => S.results[k].mape != null)
+      ? parseFloat((modelKeys.reduce((s, k) => s + S.results[k].mape, 0) / modelKeys.length).toFixed(2))
+      : null;
+    S.results['Ensemble'] = { ...primary, modelo: 'Ensemble', series: ensembleSeries, mape: ensembleMape };
     renderChart();
     updateFooterBtns();
   }
@@ -1102,7 +1258,7 @@ btnExcel.addEventListener('click', async () => {
           ic_inferior: s.intervalo_confianza?.inferior || null,
         };
       });
-      return { modelo, series: seriesData };
+      return { modelo, series: seriesData, mape: result.mape ?? null };
     } else {
       const { pronostico, ic } = getSeriesData(result);
       return {
@@ -1110,6 +1266,7 @@ btnExcel.addEventListener('click', async () => {
         pronostico:  pronostico || [],
         ic_superior: ic?.superior || null,
         ic_inferior: ic?.inferior || null,
+        mape:        result.mape ?? null,
       };
     }
   });
@@ -1206,6 +1363,8 @@ btnNuevo.addEventListener('click', () => {
 
   chartDiv.style.display = 'none';
   chartPlaceholder.style.display = 'flex';
+  $('results-panel').style.display = 'none';
+  setTimeout(() => Plotly.Plots.resize($('chart')), 100);
   hideProgress();
 
   buildExpectedFilename();

@@ -76,6 +76,16 @@ def get_metric_group(metrica: str) -> str:
     raise ValueError(f"Métrica desconocida: {metrica}")
 
 
+MESES_ES = {
+    'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04',
+    'may': '05', 'jun': '06', 'jul': '07', 'ago': '08',
+    'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12',
+    'enero': '01', 'febrero': '02', 'marzo': '03', 'abril': '04',
+    'mayo': '05', 'junio': '06', 'julio': '07', 'agosto': '08',
+    'septiembre': '09', 'octubre': '10', 'noviembre': '11', 'diciembre': '12',
+}
+
+
 def _parse_fecha_ym(s: str) -> Optional[str]:
     """Normaliza cualquier formato de fecha mensual SEPE a 'YYYY-MM'."""
     s = s.strip()
@@ -95,7 +105,112 @@ def _parse_fecha_ym(s: str) -> Optional[str]:
     m = re.match(r"(\d{2})-(\d{4})$", s)
     if m:
         return f"{m.group(2)}-{m.group(1)}"
+    # "ENERO DE 2012", "Enero de 2012" (con preposición 'de')
+    m = re.match(r"([a-záéíóúü]+)\s+de\s+(\d{4})$", s, re.IGNORECASE)
+    if m:
+        mes = MESES_ES.get(m.group(1).lower())
+        if mes:
+            return f"{int(m.group(2)):04d}-{mes}"
+    # "ENE 2012", "ene-12", "Enero 2012", "ene 12"
+    m = re.match(r"([a-záéíóúü]+)[-\s](\d{2,4})$", s, re.IGNORECASE)
+    if m:
+        mes_str = m.group(1).lower()
+        mes = MESES_ES.get(mes_str)
+        if mes:
+            year = int(m.group(2))
+            if year < 100:
+                year += 2000
+            return f"{year:04d}-{mes}"
     return None
+
+
+def _clean_number(s: str) -> str:
+    """Normaliza separadores numéricos europeos: '1.234.567' → '1234567', '1.234,56' → '1234.56'."""
+    s = s.strip()
+    if not s:
+        return s
+    # Más de un punto, o punto seguido de 3 dígitos al final o antes de coma → separador de miles
+    if s.count('.') > 1 or re.search(r'\.\d{3}(?:[,]|$)', s):
+        return s.replace('.', '').replace(',', '.')
+    # Solo coma sin punto → decimal europeo (ej: 1234,56)
+    if ',' in s and '.' not in s:
+        return s.replace(',', '.')
+    return s
+
+
+_SKIP_VALS = {"'-", '', 'NA', '-', 'N/A'}
+
+
+def clean_csv_inplace(csv_path: Path) -> None:
+    """
+    Limpia el CSV in-place y lo estandariza a separador ';' y encoding UTF-8:
+    - Detecta delimitador automáticamente (';' o tabulador)
+    - Normaliza separadores de miles europeos en columnas de datos
+    - Convierte fechas con nombres de mes en español a DD/MM/YYYY para que los scripts las lean
+    """
+    for enc in ("utf-8-sig", "latin-1"):
+        try:
+            with open(csv_path, encoding=enc, newline='') as f:
+                first_line = f.readline()
+                f.seek(0)
+                sep = '\t' if '\t' in first_line else ';'
+                rows = list(csv.reader(f, delimiter=sep))
+            break
+        except UnicodeDecodeError:
+            continue
+    else:
+        return
+
+    if len(rows) < 2:
+        return
+
+    headers = rows[0]
+    fecha_idx = 0
+    for i, h in enumerate(headers):
+        if h.strip().lower() in ('fecha', 'date', 'ds'):
+            fecha_idx = i
+            break
+
+    cleaned_rows = [headers]
+    for row in rows[1:]:
+        cleaned = []
+        for i, cell in enumerate(row):
+            stripped = cell.strip()
+            if i == fecha_idx:
+                # Normalizar fecha a DD/MM/YYYY para que los scripts usen dayfirst=True
+                ym = _parse_fecha_ym(stripped) if stripped else None
+                if ym:
+                    cleaned.append(f"01/{ym[5:7]}/{ym[:4]}")
+                else:
+                    cleaned.append(cell)
+            elif stripped in _SKIP_VALS:
+                cleaned.append(cell)
+            else:
+                cleaned.append(_clean_number(cell))
+        cleaned_rows.append(cleaned)
+
+    # Escribir en el mismo encoding que se leyó (los scripts de atributo usan latin-1)
+    write_enc = 'utf-8' if enc == 'utf-8-sig' else enc
+    with open(csv_path, 'w', encoding=write_enc, newline='') as f:
+        writer = csv.writer(f, delimiter=';')
+        writer.writerows(cleaned_rows)
+
+
+def _detect_estatal_col(csv_path: Path, fallback: str) -> str:
+    """Para CSVs estatales: devuelve el nombre real de la columna de datos (segunda columna).
+    Si no se puede leer, devuelve el fallback (metrica del nombre de fichero)."""
+    for enc in ("utf-8", "utf-8-sig", "latin-1"):
+        try:
+            with open(csv_path, encoding=enc, newline="") as f:
+                reader = csv.reader(f, delimiter=";")
+                headers = next(reader, [])
+            data_cols = [h for h in headers if h.strip().lower() not in ("fecha", "date", "ds")]
+            if data_cols:
+                return data_cols[0].strip()
+            break
+        except (UnicodeDecodeError, StopIteration):
+            continue
+    return fallback
 
 
 def read_last_csv_date(csv_path: Path) -> Optional[str]:
@@ -343,6 +458,7 @@ async def upload_csv(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail=str(e))
     temp_path = UPLOAD_DIR / f"{uuid.uuid4()}.csv"
     temp_path.write_bytes(await file.read())
+    clean_csv_inplace(temp_path)
 
     now   = datetime.now().year
     f_end = f"{now + 3}-12"
@@ -393,9 +509,16 @@ async def run_forecast(
     last_date = read_last_csv_date(csv_file)
     f_start   = next_month_str(last_date) if last_date else f"{now + 1}-01"
 
+    # Para modo estatal, el script espera --metrica igual al nombre de columna del CSV.
+    # El nombre en el fichero puede diferir del extraído del nombre de archivo.
+    if modo == "estatal":
+        script_metrica = _detect_estatal_col(csv_file, metrica)
+    else:
+        script_metrica = metrica
+
     cmd = [
         sys.executable, str(script_path.resolve()),
-        "--metrica", metrica,
+        "--metrica", script_metrica,
         "--modelo",  modelo,
         "--csv",     str(csv_file.resolve()),
         "--f_start", f_start,
@@ -464,10 +587,11 @@ async def cancel_forecast(req: CancelRequest):
 
 class ForecastSerie(BaseModel):
     modelo:      str
-    pronostico:  Optional[list] = None   # estatal: [{fecha, valor}]
-    ic_superior: Optional[list] = None
-    ic_inferior: Optional[list] = None
-    series:      Optional[dict] = None   # atributo: {serie: {pronostico, ic_superior, ic_inferior}}
+    pronostico:  Optional[list]  = None   # estatal: [{fecha, valor}]
+    ic_superior: Optional[list]  = None
+    ic_inferior: Optional[list]  = None
+    series:      Optional[dict]  = None   # atributo: {serie: {pronostico, ic_superior, ic_inferior}}
+    mape:        Optional[float] = None
 
 
 class ExportRequest(BaseModel):
@@ -546,6 +670,21 @@ async def export_excel(req: ExportRequest):
                     for s in req.series
                 ]
                 ws.append([fecha] + vals)
+
+    # Hoja MAPE
+    _MODEL_DISPLAY = {'NP': 'NeuralProphet', 'LSTM': 'LSTM', 'XGBoost': 'XGBoost', 'Ensemble': 'Ensemble'}
+    mape_rows = [(s.modelo, s.mape) for s in req.series if s.mape is not None]
+    if mape_rows:
+        ws_mape = wb.create_sheet("MAPE")
+        if req.modo == "atributo" and req.atributo:
+            title = f"MAPE esperado 1 año promedio {req.atributo}"
+        else:
+            title = "MAPE esperado 3 años"
+        ws_mape.append([title])
+        ws_mape.append([])
+        ws_mape.append(["Modelo", "MAPE %"])
+        for modelo, mape in mape_rows:
+            ws_mape.append([_MODEL_DISPLAY.get(modelo, modelo), f"{mape:.1f}%"])
 
     buf = io.BytesIO()
     wb.save(buf)
