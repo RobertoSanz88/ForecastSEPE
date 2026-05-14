@@ -149,7 +149,6 @@ main { flex: 1; display: flex; overflow: hidden; }
 .model-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .model-info { flex: 1; }
 .model-name { font-size: 12px; font-weight: 700; color: var(--text); }
-.model-badge { font-family: var(--mono); font-size: 9px; font-weight: 600; color: var(--muted); }
 .model-check { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .15s; }
 .model-card.selected .model-check { background: var(--verde-dk); border-color: var(--verde-dk); }
 .model-card.selected .model-check::after { content: '✓'; color: #fff; font-size: 10px; font-weight: 800; }
@@ -358,7 +357,6 @@ main { flex: 1; display: flex; overflow: hidden; }
             <div class="model-dot" style="background:#04A06E"></div>
             <div class="model-info">
               <div class="model-name">NeuralProphet</div>
-              <div class="model-badge">NP</div>
             </div>
             <div class="model-check"></div>
           </div>
@@ -366,7 +364,6 @@ main { flex: 1; display: flex; overflow: hidden; }
             <div class="model-dot" style="background:#008DBE"></div>
             <div class="model-info">
               <div class="model-name">LSTM</div>
-              <div class="model-badge">LSTM</div>
             </div>
             <div class="model-check"></div>
           </div>
@@ -374,7 +371,6 @@ main { flex: 1; display: flex; overflow: hidden; }
             <div class="model-dot" style="background:#F3CD00"></div>
             <div class="model-info">
               <div class="model-name">XGBoost</div>
-              <div class="model-badge">XGB</div>
             </div>
             <div class="model-check"></div>
           </div>
@@ -402,7 +398,6 @@ main { flex: 1; display: flex; overflow: hidden; }
         <div class="legend-item"><div class="legend-line dashed"></div>LSTM</div>
         <div class="legend-item"><div class="legend-line" style="background:#F3CD00"></div>XGBoost</div>
         <div class="legend-item"><div class="legend-line" style="background:#154481"></div>Ensemble</div>
-        <div class="legend-item"><div class="legend-band"></div>IC 95%</div>
       </div>
     </div>
 
@@ -1030,6 +1025,7 @@ function renderChart() {
     legend: { orientation: 'h', y: -0.18, font: { size: 11 } },
     margin: { l: 75, r: 20, t: 48, b: 40 },
     hovermode: 'x unified',
+    showlegend: false,
     autosize: true,
   };
 
