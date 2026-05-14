@@ -76,6 +76,28 @@ def get_metric_group(metrica: str) -> str:
     raise ValueError(f"Métrica desconocida: {metrica}")
 
 
+def _parse_fecha_ym(s: str) -> Optional[str]:
+    """Normaliza cualquier formato de fecha mensual SEPE a 'YYYY-MM'."""
+    s = s.strip()
+    # YYYY-MM o YYYY-MM-DD
+    m = re.match(r"(\d{4})-(\d{2})", s)
+    if m:
+        return f"{m.group(1)}-{m.group(2)}"
+    # DD/MM/YYYY (formato más común en SEPE)
+    m = re.match(r"\d{2}/(\d{2})/(\d{4})", s)
+    if m:
+        return f"{m.group(2)}-{m.group(1)}"
+    # MM/YYYY
+    m = re.match(r"(\d{2})/(\d{4})$", s)
+    if m:
+        return f"{m.group(2)}-{m.group(1)}"
+    # MM-YYYY
+    m = re.match(r"(\d{2})-(\d{4})$", s)
+    if m:
+        return f"{m.group(2)}-{m.group(1)}"
+    return None
+
+
 def read_last_csv_date(csv_path: Path) -> Optional[str]:
     """Return the last non-empty Fecha value as 'YYYY-MM', or None."""
     last_date = None
@@ -85,9 +107,9 @@ def read_last_csv_date(csv_path: Path) -> Optional[str]:
             for row in reader:
                 fecha = (row.get("Fecha") or row.get("fecha") or "").strip()
                 if fecha:
-                    m = re.match(r"(\d{4}-\d{2})", fecha)
-                    if m:
-                        last_date = m.group(1)
+                    ym = _parse_fecha_ym(fecha)
+                    if ym:
+                        last_date = ym
     except Exception:
         pass
     return last_date
@@ -101,6 +123,59 @@ def next_month_str(ym: str) -> str:
         month = 1
         year += 1
     return f"{year:04d}-{month:02d}"
+
+
+def read_csv_historico(csv_path: Path, modo: str) -> dict:
+    """
+    Lee el CSV y devuelve los datos históricos para pintado inmediato.
+    Estatal  → {"historico": [{fecha, valor}, ...]}
+    Atributo → {"historico": {serie: [{fecha, valor}, ...], ...}}
+    Prueba utf-8-sig primero; si falla por encoding, reintenta con latin-1.
+    """
+    for enc in ("utf-8-sig", "latin-1"):
+        try:
+            with open(csv_path, encoding=enc, newline="") as f:
+                reader = csv.DictReader(f, delimiter=";")
+                headers = list(reader.fieldnames or [])
+                if not headers:
+                    return {}
+                fecha_col = next(
+                    (h for h in headers if h.strip().lower() in ("fecha", "date", "ds")),
+                    headers[0],
+                )
+                data_cols = [h for h in headers if h != fecha_col]
+                if not data_cols:
+                    return {}
+
+                rows_by_col: dict = {col: [] for col in data_cols}
+                for row in reader:
+                    raw_fecha = (row.get(fecha_col) or "").strip()
+                    fecha = _parse_fecha_ym(raw_fecha) if raw_fecha else None
+                    if not fecha:
+                        continue
+                    for col in data_cols:
+                        raw_val = (row.get(col) or "").strip()
+                        if raw_val in ("'-", "", "NA", "-", "N/A"):
+                            valor = None
+                        else:
+                            try:
+                                valor = round(float(raw_val.replace(".", "").replace(",", ".")))
+                            except ValueError:
+                                valor = None
+                        rows_by_col[col].append({"fecha": fecha, "valor": valor})
+
+            if modo == "estatal":
+                return {"historico": rows_by_col.get(data_cols[0], [])}
+            else:
+                return {"historico": rows_by_col}
+
+        except UnicodeDecodeError:
+            continue
+        except Exception as exc:
+            logger.error("read_csv_historico error con %s: %s", enc, exc)
+            return {}
+
+    return {}
 
 
 def parse_csv_filename(filename: str) -> dict:
@@ -140,19 +215,32 @@ async def _stream_forecast(cmd: list):
     job_id = str(uuid.uuid4())
     input_event = threading.Event()
     input_value_holder: list = []
-    _active_jobs[job_id] = {"event": input_event, "value": input_value_holder}
+    _active_jobs[job_id] = {"event": input_event, "value": input_value_holder, "proc": None}
 
     def emit(event: dict) -> None:
         loop.call_soon_threadsafe(q.put_nowait, event)
 
     def run_script() -> None:
         try:
+            _env = os.environ.copy()
+            _env["PYTHONIOENCODING"] = "utf-8"
             proc = subprocess.Popen(
                 cmd,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
+                env=_env,
             )
+            _active_jobs[job_id]["proc"] = proc
+
+            # Drena stderr en background — evita el deadlock cuando tqdm/NeuralProphet
+            # llena el pipe buffer de stderr mientras stdout sigue siendo leído.
+            _stderr_buf: list = []
+            def _drain_stderr():
+                for chunk in iter(lambda: proc.stderr.read(4096), b""):
+                    _stderr_buf.append(chunk)
+            threading.Thread(target=_drain_stderr, daemon=True).start()
+
             while True:
                 raw_line = proc.stdout.readline()
                 if not raw_line:
@@ -203,7 +291,7 @@ async def _stream_forecast(cmd: list):
 
             proc.wait()
             if proc.returncode != 0:
-                stderr = proc.stderr.read().decode("utf-8", errors="replace")[:500]
+                stderr = b"".join(_stderr_buf).decode("utf-8", errors="replace")[:500]
                 emit({"type": "error",
                       "message": f"Error en script (código {proc.returncode}): {stderr}"})
             emit({"type": "done"})
@@ -216,6 +304,8 @@ async def _stream_forecast(cmd: list):
 
     thread = threading.Thread(target=run_script, daemon=True)
     thread.start()
+
+    yield _sse({"type": "started", "job_id": job_id})
 
     while True:
         try:
@@ -258,13 +348,16 @@ async def upload_csv(file: UploadFile = File(...)):
     f_end = f"{now + 3}-12"
     last_date = read_last_csv_date(temp_path)
     f_start   = next_month_str(last_date) if last_date else f"{now + 1}-01"
+    hist_data = read_csv_historico(temp_path, metadata["modo"])
 
     return {
-        "csv_path": str(temp_path),
-        "filename": file.filename,
-        "f_start":  f_start,
-        "f_end":    f_end,
+        "csv_path":  str(temp_path),
+        "filename":  file.filename,
+        "f_start":   f_start,
+        "f_end":     f_end,
+        "last_date": last_date,
         **metadata,
+        **hist_data,
     }
 
 
@@ -349,6 +442,23 @@ async def cleanup_csv(req: CleanupRequest):
             p.unlink(missing_ok=True)
     except Exception:
         pass
+    return {"ok": True}
+
+
+class CancelRequest(BaseModel):
+    job_id: str
+
+
+@app.post("/cancel-forecast")
+async def cancel_forecast(req: CancelRequest):
+    job = _active_jobs.pop(req.job_id, None)
+    if job:
+        proc = job.get("proc")
+        if proc:
+            try:
+                proc.kill()
+            except Exception:
+                pass
     return {"ok": True}
 
 

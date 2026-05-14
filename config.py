@@ -18,9 +18,9 @@ LSTM_ATRIBUTO_PARAMS = {
 # Parados o Afiliados mensual estatal 2027-2029 LSTM_v2.ipynb
 LSTM_ESTATAL_PARAMS = {
     'grid': {
-        'lags'  : [2, 12, 18],
-        'units' : [64, 128, 256],
-        'epochs': [100, 200, 300],
+        'lags'  : [2],   #[2, 12, 18],
+        'units' : [64],  #[64, 128, 256],
+        'epochs': [100], #[100, 200, 300],
     },
     'cv': {
         'train_months': 96,
@@ -34,9 +34,9 @@ LSTM_ESTATAL_PARAMS = {
 # Parados o Afiliados mensual por AtributoX 2027-2029 NP_v2.ipynb
 NP_ABC_ATRIBUTO_PARAMS = {
     'grid': {
-        'growth'           : ['linear', 'discontinuous'],
-        'n_changepoints'   : [1, 10, 20],          # NOTE: different from estatal [10,20,50]
-        'seasonality_mode' : ['additive', 'multiplicative'],
+        'growth'           : ['linear'],   #['linear', 'discontinuous'],
+        'n_changepoints'   : [1],          #[1, 10, 20],                      # NOTE: different from estatal [10,20,50]
+        'seasonality_mode' : ['additive'], #['additive', 'multiplicative'],
     },
     'nlags'     : 2,
     'val_months': 12,
@@ -45,9 +45,9 @@ NP_ABC_ATRIBUTO_PARAMS = {
 # Parados o Afiliados mensual estatal 2027-2029 NP_v2.ipynb
 NP_ABC_ESTATAL_PARAMS = {
     'grid': {
-        'growth'           : ['linear', 'discontinuous'],
-        'n_changepoints'   : [10, 20, 50],
-        'seasonality_mode' : ['additive', 'multiplicative'],
+        'growth'           : ['linear'],    #['linear', 'discontinuous'],
+        'n_changepoints'   : [10],          # [10, 20, 50],
+        'seasonality_mode' : ['additive'],  #['additive', 'multiplicative'],
     },
     'nlags': 2,
     'cv': {
@@ -62,9 +62,9 @@ NP_ABC_ESTATAL_PARAMS = {
 # Contratos mensual por AtributoX 2027-2029 NP_v2.ipynb
 NP_DE_ATRIBUTO_PARAMS = {
     'grid': {
-        'growth'           : ['linear', 'discontinuous'],
-        'n_changepoints'   : [10, 20, 50],
-        'seasonality_mode' : ['additive', 'multiplicative'],
+        'growth'           : ['linear'],    # ['linear', 'discontinuous'],
+        'n_changepoints'   : [10],          #[10, 20, 50]
+        'seasonality_mode' : ['additive'],  #['additive', 'multiplicative'],
     },
     'nlags'     : 0,        # no autoregression for Contratos
     'val_months': 12,
@@ -73,10 +73,11 @@ NP_DE_ATRIBUTO_PARAMS = {
 # Contratos mensual estatal 2027-2029 NP_v2.ipynb
 NP_DE_ESTATAL_PARAMS = {
     'grid': {
-        'growth'           : ['linear', 'discontinuous'],
-        'n_changepoints'   : [10, 20, 50],
-        'seasonality_mode' : ['additive', 'multiplicative'],
-    },
+        'growth'           : ['linear'],   #['linear', 'discontinuous'],
+        'n_changepoints'   : [10],         #[10, 20, 50],
+        'seasonality_mode' : ['additive'], #['additive', 'multiplicative'],
+
+    }, 
     'nlags': 0,
     'cv': {
         'train_months': 96,

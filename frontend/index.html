@@ -240,6 +240,8 @@ main { flex: 1; display: flex; overflow: hidden; }
 .btn-excel    { background: rgba(0,129,90,0.08); border: 1.5px solid var(--verde-dk); color: var(--verde-dk); }
 .btn-excel:hover:not(:disabled) { background: rgba(0,129,90,0.15); }
 .footer-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-cancelar { background: #EFEFEF; border: 1.5px solid #ADADAD; color: #4A4A4A; }
+.btn-cancelar:hover { background: #E2E2E2; border-color: #888; }
 
 /* ERROR TOAST */
 .toast {
@@ -424,6 +426,7 @@ main { flex: 1; display: flex; overflow: hidden; }
       <button class="footer-btn btn-nuevo" id="btn-nuevo">🔄 Nuevo pronóstico</button>
       <button class="footer-btn btn-ensemble" id="btn-ensemble" disabled>⚡ Calcular Ensemble</button>
       <button class="footer-btn btn-excel" id="btn-excel" disabled>⬇ Exportar Excel</button>
+      <button class="footer-btn btn-cancelar" id="btn-cancelar" style="display:none">✕ Cancelar</button>
     </div>
   </section>
 </main>
@@ -458,9 +461,13 @@ const S = {
   metrica: null, anio_inicio: null, modo: 'estatal',
   atributo: null,
   selectedModels: new Set(),
-  results: {},          // { 'NP': resultObj, ... }
+  results: {},          // { 'NP': resultObj, ... } — persiste mientras no cambia CSV/métrica/modo
+  historico: null,      // array (estatal) o objeto {serie: [...]} (atributo) — llega del /upload-csv
+  fStart: null,         // primer mes de pronóstico, ej. "2025-10"
+  fEnd: null,           // último mes de pronóstico, ej. "2028-12"
   running: false,
   currentSse: null,
+  currentJobId: null,
   showHistorico: true,
   selectedSerie: null,  // for atributo mode
   modelQueue: [],
@@ -486,6 +493,7 @@ const modelNote      = $('model-note');
 const btnNuevo       = $('btn-nuevo');
 const btnEnsemble    = $('btn-ensemble');
 const btnExcel       = $('btn-excel');
+const btnCancelar    = $('btn-cancelar');
 const btnConHistorico = $('btn-con-historico');
 const btnSoloPronostico = $('btn-solo-pronostico');
 const toast          = $('toast');
@@ -539,6 +547,19 @@ function formatYM(ym) {
   const m = parseInt(ym.slice(5, 7), 10);
   const y = ym.slice(0, 4);
   return `${MONTHS_ES[m - 1]} ${y}`;
+}
+
+// ── HISTORICO HELPER ──────────────────────────────────────────────────────
+function getHistoricoSerie() {
+  if (!S.historico) {
+    // Fallback: get from first result (backward compat)
+    const keys = Object.keys(S.results);
+    if (!keys.length) return null;
+    return getSeriesData(S.results[keys[0]]).historico || null;
+  }
+  if (S.modo !== 'atributo') return Array.isArray(S.historico) ? S.historico : null;
+  const key = S.selectedSerie || Object.keys(S.historico)[0];
+  return S.historico[key] || null;
 }
 
 // ── METRIC BOXES ──────────────────────────────────────────────────────────
@@ -605,12 +626,27 @@ function updateFooterBtns() {
   btnEnsemble.disabled = !multiResults || S.running;
 }
 
+function updateCancelBtn() {
+  btnCancelar.style.display = S.running ? '' : 'none';
+}
+
 // ── CSV UPLOAD ────────────────────────────────────────────────────────────
 async function handleCsvFile(file) {
   if (!file || !file.name.toLowerCase().endsWith('.csv')) {
     setDropzoneError('El fichero debe ser un .csv');
     return;
   }
+
+  // Limpiar CSV anterior del servidor antes de subir uno nuevo
+  if (S.csvPath) {
+    fetch('/cleanup-csv', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ csv_path: S.csvPath }),
+    }).catch(() => {});
+    S.csvPath = null;
+  }
+
   $('dropzone-hint').style.display = 'none';
   $('dropzone-status').textContent = '⏳ Subiendo...';
   $('dropzone-status').className = 'dropzone-status';
@@ -625,12 +661,16 @@ async function handleCsvFile(file) {
       return;
     }
     const data = await res.json();
-    S.csvPath        = data.csv_path;
-    S.csvFilename    = data.filename;
-    S.metrica        = data.metrica;
-    S.anio_inicio    = data.anio_inicio;
-    S.modo           = data.modo;
-    S.atributo       = data.atributo;
+    S.csvPath     = data.csv_path;
+    S.csvFilename = data.filename;
+    S.metrica     = data.metrica;
+    S.anio_inicio = data.anio_inicio;
+    S.modo        = data.modo;
+    S.atributo    = data.atributo;
+    S.results     = {};           // nuevo CSV → resultados anteriores inválidos
+    S.historico   = data.historico || null;
+    S.fStart      = data.f_start  || null;
+    S.fEnd        = data.f_end    || null;
 
     dropzone.classList.remove('error');
     dropzone.classList.add('success');
@@ -641,8 +681,23 @@ async function handleCsvFile(file) {
     updateModelCards();
     updateModoUI();
     buildExpectedFilename();
-
     updateRunBtn();
+    updateFooterBtns();
+
+    // Selector de serie para CSVs por atributo
+    if (data.modo === 'atributo' && S.historico && !Array.isArray(S.historico)) {
+      const keys = Object.keys(S.historico);
+      S.selectedSerie = keys[0] || null;
+      serieSelect.innerHTML = keys.map(k =>
+        `<option value="${k}"${k === S.selectedSerie ? ' selected' : ''}>${k}</option>`
+      ).join('');
+      serieSelectorBar.style.display = 'flex';
+    } else {
+      S.selectedSerie = null;
+      serieSelectorBar.style.display = 'none';
+    }
+
+    renderChart();  // pinta el histórico inmediatamente
   } catch (e) {
     setDropzoneError('Error de conexión con el servidor');
   }
@@ -670,28 +725,40 @@ fileInput.addEventListener('change', () => handleCsvFile(fileInput.files[0]));
 // ── METRIC CLICK ──────────────────────────────────────────────────────────
 document.querySelectorAll('.metric-btn').forEach(btn => {
   btn.addEventListener('click', () => {
+    if (S.metrica !== btn.dataset.metric) S.results = {};
     S.metrica = btn.dataset.metric;
     updateMetricBoxes();
     updateModelCards();
     buildExpectedFilename();
-
     updateRunBtn();
+    updateFooterBtns();
+    renderChart();
   });
 });
 
 // ── MODO TOGGLE ───────────────────────────────────────────────────────────
 document.querySelectorAll('.toggle-pill').forEach(pill => {
   pill.addEventListener('click', () => {
+    if (S.modo !== pill.dataset.modo) {
+      S.results = {};
+      S.historico = null;
+      S.selectedSerie = null;
+      serieSelectorBar.style.display = 'none';
+    }
     S.modo = pill.dataset.modo;
     updateModoUI();
     buildExpectedFilename();
-
     updateRunBtn();
+    updateFooterBtns();
+    renderChart();
   });
 });
 atributoSelect.addEventListener('change', () => {
   S.atributo = atributoSelect.value || null;
+  S.results = {};
   buildExpectedFilename();
+  updateFooterBtns();
+  renderChart();
 });
 
 // ── MODEL CARDS ───────────────────────────────────────────────────────────
@@ -703,6 +770,7 @@ document.querySelectorAll('.model-card').forEach(card => {
     else S.selectedModels.add(m);
     card.classList.toggle('selected', S.selectedModels.has(m));
     updateRunBtn();
+    renderChart();  // muestra/oculta la línea de pronóstico del modelo al instante
   });
 });
 
@@ -729,10 +797,10 @@ serieSelect.addEventListener('change', () => {
 // ── RUN FORECAST ──────────────────────────────────────────────────────────
 runBtn.addEventListener('click', () => {
   if (S.running || !S.csvPath || !S.metrica || S.selectedModels.size === 0) return;
-  // Clear previous results except Ensemble
-  S.results = {};
-  S.selectedSerie = null;
-  S.modelQueue = [...S.selectedModels].filter(m => m !== 'Ensemble');
+  // Solo ejecutar modelos seleccionados que aún no tienen resultado
+  const modelsToRun = [...S.selectedModels].filter(m => m !== 'Ensemble' && !S.results[m]);
+  if (modelsToRun.length === 0) return;
+  S.modelQueue = modelsToRun;
   startNextModel();
 });
 
@@ -743,8 +811,10 @@ function startNextModel() {
   }
   const modelo = S.modelQueue.shift();
   S.running = true;
+  S.currentJobId = null;
   updateRunBtn();
   updateFooterBtns();
+  updateCancelBtn();
   setProgress(0, `Iniciando ${modelo}...`);
 
   const params = new URLSearchParams({
@@ -762,22 +832,22 @@ function startNextModel() {
     let msg;
     try { msg = JSON.parse(e.data); } catch { return; }
 
-    if (msg.type === 'progress') {
+    if (msg.type === 'started') {
+      S.currentJobId = msg.job_id;
+
+    } else if (msg.type === 'progress') {
       setProgress(msg.percent, `[${modelo}] ${msg.message}`);
 
     } else if (msg.type === 'result') {
       S.results[modelo] = msg.data;
-      if (msg.data.modo === 'atributo' && msg.data.series) {
-        const keys = Object.keys(msg.data.series);
-        if (!S.selectedSerie) S.selectedSerie = keys[0];
-        serieSelect.innerHTML = keys.map(k =>
-          `<option value="${k}"${k === S.selectedSerie ? ' selected' : ''}>${k}</option>`
-        ).join('');
+      if (msg.data.modo === 'atributo') {
+        // El selector de series ya fue inicializado en el upload; solo asegurar visibilidad
         serieSelectorBar.style.display = 'flex';
-      } else {
-        serieSelectorBar.style.display = 'none';
+        if (!S.selectedSerie && msg.data.series) {
+          S.selectedSerie = Object.keys(msg.data.series)[0] || null;
+        }
       }
-      renderChart();
+      renderChart();  // pinta la línea del modelo recién terminado, sin borrar las anteriores
 
     } else if (msg.type === 'input_required') {
       showInputModal(msg.job_id, msg.prompt);
@@ -801,25 +871,23 @@ function startNextModel() {
     sse.close();
     S.running = false;
     S.currentSse = null;
+    S.currentJobId = null;
     showToast('Error de conexión SSE. Comprueba que el servidor está activo.');
     updateRunBtn();
     updateFooterBtns();
+    updateCancelBtn();
     hideProgress();
   };
 }
 
 function onAllDone() {
   S.running = false;
+  S.currentJobId = null;
   updateRunBtn();
   updateFooterBtns();
+  updateCancelBtn();
   setTimeout(hideProgress, 1500);
-  if (S.csvPath) {
-    fetch('/cleanup-csv', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({csv_path: S.csvPath}),
-    }).catch(() => {});
-  }
+  // CSV se conserva hasta que el usuario pulse "Nuevo pronóstico" o suba otro CSV
 }
 
 // ── CHART ─────────────────────────────────────────────────────────────────
@@ -833,8 +901,14 @@ function getSeriesData(result) {
 }
 
 function renderChart() {
-  const resultKeys = Object.keys(S.results);
-  if (resultKeys.length === 0) {
+  const historico = getHistoricoSerie();
+  // Solo pintar resultados de modelos seleccionados que ya tienen resultado
+  const activeResults = [...S.selectedModels].filter(m => S.results[m]);
+  if (S.results['Ensemble']) activeResults.push('Ensemble');
+
+  const validHistorico = (historico || []).filter(d => d.valor !== null);
+
+  if (!validHistorico.length && activeResults.length === 0) {
     chartDiv.style.display = 'none';
     chartPlaceholder.style.display = 'flex';
     return;
@@ -842,65 +916,62 @@ function renderChart() {
   chartPlaceholder.style.display = 'none';
   chartDiv.style.display = 'block';
 
-  const primaryResult = S.results[resultKeys[0]];
-  const { historico, pronostico, ic } = getSeriesData(primaryResult);
-
   const traces = [];
+  const primaryResult = activeResults.length > 0 ? S.results[activeResults[0]] : null;
 
-  // IC band (fill between)
-  if (ic && ic.superior && ic.inferior) {
-    const xUp  = ic.superior.map(d => d.fecha);
-    const yUp  = ic.superior.map(d => d.valor);
-    const xDn  = ic.inferior.map(d => d.fecha).slice().reverse();
-    const yDn  = ic.inferior.map(d => d.valor).slice().reverse();
-    traces.push({
-      x: [...xUp, ...xDn], y: [...yUp, ...yDn],
-      name: 'IC 95%', type: 'scatter', fill: 'toself', mode: 'lines',
-      fillcolor: 'rgba(155,218,197,0.22)',
-      line: { color: '#9BDAC5', dash: 'dot', width: 1 },
-      hoverinfo: 'skip', showlegend: true,
-    });
+  // IC band — del primer modelo activo que la tenga
+  if (primaryResult) {
+    const { ic } = getSeriesData(primaryResult);
+    if (ic && ic.superior && ic.inferior) {
+      const xUp = ic.superior.map(d => d.fecha);
+      const yUp = ic.superior.map(d => d.valor);
+      const xDn = ic.inferior.map(d => d.fecha).slice().reverse();
+      const yDn = ic.inferior.map(d => d.valor).slice().reverse();
+      traces.push({
+        x: [...xUp, ...xDn], y: [...yUp, ...yDn],
+        name: 'IC 95%', type: 'scatter', fill: 'toself', mode: 'lines',
+        fillcolor: 'rgba(155,218,197,0.22)',
+        line: { color: '#9BDAC5', dash: 'dot', width: 1 },
+        hoverinfo: 'skip', showlegend: true,
+      });
+    }
   }
 
-  // Historical
-  if (S.showHistorico && historico) {
+  // Histórico — fuente primaria: S.historico (desde upload-csv)
+  if (S.showHistorico && validHistorico.length) {
     traces.push({
-      x: historico.map(d => d.fecha), y: historico.map(d => d.valor),
+      x: validHistorico.map(d => d.fecha), y: validHistorico.map(d => d.valor),
       name: 'Histórico', type: 'scatter', mode: 'lines',
       line: { color: '#585C5C', width: 2 },
       fill: 'tozeroy', fillcolor: 'rgba(88,92,92,0.06)',
     });
   }
 
-  // Model forecasts
-  resultKeys.forEach(modelo => {
-    const { pronostico: pron } = getSeriesData(S.results[modelo]);
-    if (!pron) return;
+  // Pronósticos — solo modelos seleccionados con resultado disponible
+  activeResults.forEach(modelo => {
+    const { pronostico } = getSeriesData(S.results[modelo]);
+    if (!pronostico) return;
     traces.push({
-      x: pron.map(d => d.fecha), y: pron.map(d => d.valor),
+      x: pronostico.map(d => d.fecha), y: pronostico.map(d => d.valor),
       name: modelo, type: 'scatter', mode: 'lines',
-      line: {
-        color: MODEL_COLORS[modelo] || '#333',
-        width: 2.5,
-        dash: MODEL_DASHES[modelo] || 'solid',
-      },
+      line: { color: MODEL_COLORS[modelo] || '#333', width: 2.5, dash: MODEL_DASHES[modelo] || 'solid' },
     });
   });
 
-  // Shapes: vertical cut line
+  // Línea de corte vertical en el último dato histórico
   const shapes = [];
-  if (historico && historico.length) {
-    const cutDate = historico[historico.length - 1].fecha;
+  if (validHistorico.length) {
+    const cutDate = validHistorico[validHistorico.length - 1].fecha;
     shapes.push({
       type: 'line', x0: cutDate, x1: cutDate, y0: 0, y1: 1, yref: 'paper',
       line: { color: '#04A06E', dash: 'dot', width: 1.5 },
     });
   }
 
-  // Annotations: max historical point
+  // Anotación: máximo histórico
   const annotations = [];
-  if (S.showHistorico && historico && historico.length) {
-    const maxPt = historico.reduce((a, b) => b.valor > a.valor ? b : a);
+  if (S.showHistorico && validHistorico.length) {
+    const maxPt = validHistorico.reduce((a, b) => b.valor > a.valor ? b : a);
     annotations.push({
       x: maxPt.fecha, y: maxPt.valor,
       text: '▲ ' + maxPt.valor.toLocaleString('es-ES'),
@@ -911,22 +982,28 @@ function renderChart() {
     });
   }
 
-  // Title
-  const modoLabel = primaryResult.modo === 'estatal' ? 'Estatal'
-                    : `${primaryResult.atributo || 'Por atributo'}${S.selectedSerie ? ' · ' + S.selectedSerie : ''}`;
-  const histRange = historico && historico.length
-    ? `${historico[0].fecha.slice(0,4)}–${historico[historico.length-1].fecha.slice(0,4)}` : '';
-  const pronArr = pronostico || (Object.values(S.results)[0] && getSeriesData(Object.values(S.results)[0]).pronostico);
+  // Título
+  const metrica = primaryResult?.metrica || S.metrica || '—';
+  const modoLabel = S.modo === 'estatal' ? 'Estatal'
+    : `${S.atributo || 'Por atributo'}${S.selectedSerie ? ' · ' + S.selectedSerie : ''}`;
+  const histRange = validHistorico.length
+    ? `${validHistorico[0].fecha.slice(0,4)}–${validHistorico[validHistorico.length-1].fecha.slice(0,4)}`
+    : '';
+  const pronArr = primaryResult ? getSeriesData(primaryResult).pronostico : null;
   const pronRange = pronArr && pronArr.length
     ? `${formatYM(pronArr[0].fecha)}–${formatYM(pronArr[pronArr.length-1].fecha)}` : '';
-  const titleText = `${primaryResult.metrica} — ${modoLabel}` +
-    (histRange ? ` | Histórico ${histRange}` : '') +
-    (pronRange ? ` · Pronóstico ${pronRange}` : '');
+  const titleText = `${metrica} — ${modoLabel}`
+    + (histRange ? ` | Histórico ${histRange}` : '')
+    + (pronRange ? ` · Pronóstico ${pronRange}` : '');
 
-  // xaxis range
+  // Rango eje X
   const xRange = [];
   if (!S.showHistorico && pronArr && pronArr.length) {
+    // Modo "solo pronóstico": zoom al rango del pronóstico
     xRange.push(pronArr[0].fecha, pronArr[pronArr.length-1].fecha);
+  } else if (!activeResults.length && validHistorico.length && S.fEnd) {
+    // Sin resultados aún: extender el eje hasta f_end para mostrar el área vacía de pronóstico
+    xRange.push(validHistorico[0].fecha, S.fEnd);
   }
 
   const layout = {
@@ -1031,14 +1108,45 @@ btnExcel.addEventListener('click', async () => {
   }
 });
 
+// ── CANCELAR PRONÓSTICO ───────────────────────────────────────────────────
+btnCancelar.addEventListener('click', async () => {
+  if (S.currentSse) { S.currentSse.close(); S.currentSse = null; }
+  const jobId = S.currentJobId;
+  S.running = false;
+  S.currentJobId = null;
+  S.modelQueue = [];
+  updateCancelBtn();
+  updateRunBtn();
+  updateFooterBtns();
+  hideProgress();
+  if (jobId) {
+    try {
+      await fetch('/cancel-forecast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_id: jobId }),
+      });
+    } catch {}
+  }
+});
+
 // ── NUEVO PRONÓSTICO ──────────────────────────────────────────────────────
 btnNuevo.addEventListener('click', () => {
   if (S.currentSse) { S.currentSse.close(); S.currentSse = null; }
+  // Limpiar CSV del servidor
+  if (S.csvPath) {
+    fetch('/cleanup-csv', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ csv_path: S.csvPath }),
+    }).catch(() => {});
+  }
   S.csvPath = null; S.csvFilename = null;
   S.metrica = null; S.anio_inicio = null;
   S.modo = 'estatal'; S.atributo = null;
   S.selectedModels.clear(); S.results = {};
-  S.running = false; S.selectedSerie = null; S.modelQueue = [];
+  S.historico = null; S.fStart = null; S.fEnd = null;
+  S.running = false; S.currentJobId = null; S.selectedSerie = null; S.modelQueue = [];
 
   // Reset UI
   dropzone.classList.remove('success','error');
