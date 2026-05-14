@@ -142,6 +142,10 @@ main { flex: 1; display: flex; overflow: hidden; }
 .model-card:hover:not(.disabled) { border-color: var(--verde-acc); }
 .model-card.selected { border-color: var(--verde-dk); background: rgba(0,129,90,0.06); }
 .model-card.disabled { opacity: 0.38; cursor: not-allowed; }
+.model-card.locked  { pointer-events: none; opacity: 0.55; }
+.metric-btn:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+.toggle-pill:disabled { opacity: 0.45; cursor: not-allowed; }
+.dropzone.locked { pointer-events: none; opacity: 0.55; }
 .model-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .model-info { flex: 1; }
 .model-name { font-size: 12px; font-weight: 700; color: var(--text); }
@@ -804,6 +808,14 @@ runBtn.addEventListener('click', () => {
   startNextModel();
 });
 
+function lockControls(locked) {
+  document.querySelectorAll('.metric-btn').forEach(b => { b.disabled = locked; });
+  document.querySelectorAll('.toggle-pill').forEach(p => { p.disabled = locked; });
+  atributoSelect.disabled = locked || S.modo === 'estatal';
+  document.querySelectorAll('.model-card').forEach(c => c.classList.toggle('locked', locked));
+  dropzone.classList.toggle('locked', locked);
+}
+
 function startNextModel() {
   if (S.modelQueue.length === 0) {
     onAllDone();
@@ -812,6 +824,7 @@ function startNextModel() {
   const modelo = S.modelQueue.shift();
   S.running = true;
   S.currentJobId = null;
+  lockControls(true);
   updateRunBtn();
   updateFooterBtns();
   updateCancelBtn();
@@ -872,6 +885,7 @@ function startNextModel() {
     S.running = false;
     S.currentSse = null;
     S.currentJobId = null;
+    lockControls(false);
     showToast('Error de conexión SSE. Comprueba que el servidor está activo.');
     updateRunBtn();
     updateFooterBtns();
@@ -883,6 +897,7 @@ function startNextModel() {
 function onAllDone() {
   S.running = false;
   S.currentJobId = null;
+  lockControls(false);
   updateRunBtn();
   updateFooterBtns();
   updateCancelBtn();
@@ -1065,23 +1080,50 @@ btnExcel.addEventListener('click', async () => {
   if (resultKeys.length === 0) return;
 
   const primary = S.results[resultKeys[0]];
-  const { historico } = getSeriesData(primary);
+  const isAtributo = primary.modo === 'atributo';
 
+  // Historico: para atributo enviamos todas las series; para estatal, la serie plana
+  let historicoFlat = null;
+  let historicoSeries = null;
+  if (isAtributo) {
+    if (S.historico && typeof S.historico === 'object' && !Array.isArray(S.historico)) {
+      historicoSeries = S.historico;
+    }
+  } else {
+    historicoFlat = getHistoricoSerie() || [];
+  }
+
+  // Series: para atributo enviamos todas las subseries de cada modelo
   const series = resultKeys.map(modelo => {
-    const { pronostico, ic } = getSeriesData(S.results[modelo]);
-    return {
-      modelo,
-      pronostico: pronostico || [],
-      ic_superior: ic?.superior || null,
-      ic_inferior: ic?.inferior || null,
-    };
+    const result = S.results[modelo];
+    if (isAtributo && result.series) {
+      const seriesData = {};
+      Object.keys(result.series).forEach(key => {
+        const s = result.series[key];
+        seriesData[key] = {
+          pronostico:  s.pronostico || [],
+          ic_superior: s.intervalo_confianza?.superior || null,
+          ic_inferior: s.intervalo_confianza?.inferior || null,
+        };
+      });
+      return { modelo, series: seriesData };
+    } else {
+      const { pronostico, ic } = getSeriesData(result);
+      return {
+        modelo,
+        pronostico:  pronostico || [],
+        ic_superior: ic?.superior || null,
+        ic_inferior: ic?.inferior || null,
+      };
+    }
   });
 
   const body = {
-    metrica: primary.metrica,
-    modo: primary.modo,
-    atributo: S.selectedSerie || primary.atributo,
-    historico: historico || [],
+    metrica:          primary.metrica,
+    modo:             primary.modo,
+    atributo:         primary.atributo || null,
+    historico:        historicoFlat,
+    historico_series: historicoSeries,
     series,
   };
 
@@ -1115,6 +1157,7 @@ btnCancelar.addEventListener('click', async () => {
   S.running = false;
   S.currentJobId = null;
   S.modelQueue = [];
+  lockControls(false);
   updateCancelBtn();
   updateRunBtn();
   updateFooterBtns();

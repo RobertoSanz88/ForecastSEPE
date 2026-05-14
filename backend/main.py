@@ -463,52 +463,102 @@ async def cancel_forecast(req: CancelRequest):
 
 
 class ForecastSerie(BaseModel):
-    modelo: str
-    pronostico: list
+    modelo:      str
+    pronostico:  Optional[list] = None   # estatal: [{fecha, valor}]
     ic_superior: Optional[list] = None
     ic_inferior: Optional[list] = None
+    series:      Optional[dict] = None   # atributo: {serie: {pronostico, ic_superior, ic_inferior}}
 
 
 class ExportRequest(BaseModel):
-    metrica:   str
-    modo:      str
-    atributo:  Optional[str] = None
-    historico: list
-    series:    list[ForecastSerie]
+    metrica:          str
+    modo:             str
+    atributo:         Optional[str]  = None
+    historico:        Optional[list] = None   # estatal: [{fecha, valor}]
+    historico_series: Optional[dict] = None   # atributo: {serie: [{fecha, valor}]}
+    series:           list[ForecastSerie]
 
 
 @app.post("/export-excel")
 async def export_excel(req: ExportRequest):
     wb = openpyxl.Workbook()
+    wb.remove(wb.active)  # remove default empty sheet
 
-    ws_h = wb.active
-    ws_h.title = "Histórico"
-    ws_h.append(["Fecha", req.metrica])
-    for r in req.historico:
-        ws_h.append([r.get("fecha"), r.get("valor")])
+    if req.modo == "atributo":
+        # Historico sheet: Fecha + one column per serie
+        hist_src = req.historico_series or {}
+        if hist_src:
+            ws_h = wb.create_sheet("Histórico")
+            snames = list(hist_src.keys())
+            ws_h.append(["Fecha"] + snames)
+            date_h: dict = {}
+            for sname, rows in hist_src.items():
+                for r in (rows or []):
+                    f = r.get("fecha")
+                    if f not in date_h:
+                        date_h[f] = {}
+                    date_h[f][sname] = r.get("valor")
+            for fecha in sorted(date_h.keys()):
+                ws_h.append([fecha] + [date_h[fecha].get(s) for s in snames])
 
-    for serie in req.series:
-        safe_name = re.sub(r"[\\/*?:\[\]]", "_", serie.modelo)[:31]
-        ws_p = wb.create_sheet(f"Pronóstico {safe_name}")
-        headers = ["Fecha", req.metrica]
-        if serie.ic_superior:
-            headers += ["IC Superior", "IC Inferior"]
-        ws_p.append(headers)
-        for i, r in enumerate(serie.pronostico):
-            row = [r.get("fecha"), r.get("valor")]
-            if serie.ic_superior and i < len(serie.ic_superior):
-                row.append(serie.ic_superior[i].get("valor"))
-            if serie.ic_inferior and i < len(serie.ic_inferior):
-                row.append(serie.ic_inferior[i].get("valor"))
-            ws_p.append(row)
+        # One sheet per model: Fecha + one column per serie
+        for serie in req.series:
+            safe_name = re.sub(r"[\\/*?:\[\]]", "_", serie.modelo)[:31]
+            ws = wb.create_sheet(safe_name)
+            if not serie.series:
+                continue
+            snames = list(serie.series.keys())
+            ws.append(["Fecha"] + snames)
+            date_map: dict = {}
+            for sname, sdata in serie.series.items():
+                for r in (sdata.get("pronostico") or []):
+                    f = r.get("fecha")
+                    if f not in date_map:
+                        date_map[f] = {}
+                    date_map[f][sname] = r.get("valor")
+            for fecha in sorted(date_map.keys()):
+                ws.append([fecha] + [date_map[fecha].get(s) for s in snames])
+
+    else:
+        # Historico sheet
+        if req.historico:
+            ws_h = wb.create_sheet("Histórico")
+            ws_h.append(["Fecha", req.metrica])
+            for r in req.historico:
+                ws_h.append([r.get("fecha"), r.get("valor")])
+
+        if len(req.series) == 1:
+            # Single model: one sheet named after the model
+            safe_name = re.sub(r"[\\/*?:\[\]]", "_", req.series[0].modelo)[:31]
+            ws = wb.create_sheet(safe_name)
+            ws.append(["Fecha", req.metrica])
+            for r in (req.series[0].pronostico or []):
+                ws.append([r.get("fecha"), r.get("valor")])
+        else:
+            # Multiple models: one sheet, one column per model
+            ws = wb.create_sheet("Pronóstico")
+            ws.append(["Fecha"] + [s.modelo for s in req.series])
+            n = len(req.series[0].pronostico or []) if req.series else 0
+            for i in range(n):
+                fecha = (req.series[0].pronostico or [])[i].get("fecha")
+                vals = [
+                    s.pronostico[i].get("valor") if s.pronostico and i < len(s.pronostico) else None
+                    for s in req.series
+                ]
+                ws.append([fecha] + vals)
 
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
 
     safe_metrica = re.sub(r"[^\w]", "_", req.metrica)
-    modelos_str  = "_".join(s.modelo for s in req.series)
-    filename     = f"Pronostico_{safe_metrica}_{modelos_str}.xlsx"
+    if req.modo == "atributo" and req.atributo:
+        safe_atributo = re.sub(r"[^\w]", "_", req.atributo)
+        modo_part = f"por_{safe_atributo}"
+    else:
+        modo_part = req.modo
+    modelos_str = "_".join(s.modelo for s in req.series)
+    filename    = f"Pronostico_{safe_metrica}_{modo_part}_{modelos_str}.xlsx"
 
     return Response(
         content=buf.read(),
