@@ -196,6 +196,7 @@ def main():
             'historico':           historico,
             'pronostico':          pronostico,
             'intervalo_confianza': None,
+            'mape':                round(float(best_mape), 2),
         }
 
         print('RESULT:' + json.dumps(result, ensure_ascii=False), flush=True)

@@ -290,6 +290,7 @@ def main():
             'atributo':    atributo,
             'anio_inicio': anio_inicio,
             'series':      series_out,
+            'mape':        round(float(mean_mape_valid), 2),
         }
 
         print('RESULT:' + json.dumps(result, ensure_ascii=False), flush=True)
