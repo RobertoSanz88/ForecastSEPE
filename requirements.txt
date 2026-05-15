@@ -1,7 +1,29 @@
+# Entorno: Pronósticos (NP + XGB + LSTM)
+# Requiere Python 3.10 — creado por setup_entorno_NP_LSTM_XGBoost.bat
+# torch==2.5.1 es intencionado: torch>=2.6 cambia weights_only=True por defecto
+# en torch.load, lo que rompe el LR finder de NeuralProphet 0.9.0.
+# pytorch-lightning==2.5.0.post0 es compatible con torch 2.5.1.
+
+neuralprophet==0.9.0
+torch==2.5.1
+pytorch-lightning==2.5.0.post0
+tensorflow==2.21.0
+scalecast==0.21.1
+xgboost==3.2.0
+
+pandas==2.3.3
+numpy==1.26.4
+scikit-learn==1.7.2
+statsmodels==0.14.6
+
+matplotlib
+openpyxl
+notebook
+ipykernel
+
+# --- ForecastSEPE Web App ---
 fastapi>=0.110.0
 uvicorn[standard]>=0.29.0
 python-dotenv>=1.0.1
-openpyxl>=3.1.2
-pandas>=2.0.0
 python-multipart>=0.0.9
 aiofiles>=23.2.1
