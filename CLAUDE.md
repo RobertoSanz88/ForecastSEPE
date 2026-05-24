@@ -34,10 +34,7 @@ ForecastSEPE/
 └── README.md
 ```
 
-Los scripts marcados ✓ están implementados con modelos reales. Los demás se
-irán convirtiendo desde los notebooks en `Parados Contratos Afiliados 2027-2029/`.
-Mientras tanto, `forecast_ABC_*.py` y `forecast_DE_*.py` (stubs fase 1) cubren
-los casos no convertidos.
+Todos los scripts están implementados con modelos reales.
 
 ## Grupos de métricas y scripts
 
@@ -155,18 +152,17 @@ start.bat           # Windows: usa entorno NP-LSTM-XGBoost, abre navegador, lanz
 - **Header:** 72px de alto, logo 44px, título 24px, subtítulo 13px
 - **Footer:** padding 14px 16px, botones con padding 10px 22px / font-size 13px
 
-## Fase 2 — conversión de notebooks a scripts
+## Fase 2 — conversión de notebooks a scripts (completada)
 
-Notebooks fuente: `Parados Contratos Afiliados 2027-2029/`
-Convertidos uno a uno, validando con el usuario entre script y script.
+Todos los scripts han sido convertidos desde los notebooks en `Parados Contratos Afiliados 2027-2029/`.
 
-| Script | Notebook origen | Estado |
-|--------|----------------|--------|
-| forecast_ABC_atributo_LSTM.py | Parados o Afiliados mensual por AtributoX 2027-2029 LSTM_v2.ipynb | ✓ real |
-| forecast_ABC_atributo_NP.py | Parados o Afiliados mensual por AtributoX 2027-2029 NP_v2.ipynb | pendiente |
-| forecast_ABC_estatal_NP.py | Parados o Afiliados mensual estatal 2027-2029 NP_v2.ipynb | pendiente |
-| forecast_ABC_estatal_LSTM.py | Parados o Afiliados mensual estatal 2027-2029 LSTM_v2.ipynb | pendiente |
-| forecast_DE_atributo_XGBoost.py | Contratos mensual por AtributoX 2027-2029 XGBoost_v2.ipynb | pendiente |
-| forecast_DE_atributo_NP.py | Contratos mensual por AtributoX 2027-2029 NP_v2.ipynb | pendiente |
-| forecast_DE_estatal_XGBoost.py | Contratos mensual estatal 2027-2029 XGBoost_v2.ipynb | pendiente |
-| forecast_DE_estatal_NP.py | Contratos mensual estatal 2027-2029 NP_v2.ipynb | pendiente |
+| Script | Notebook origen |
+|--------|----------------|
+| forecast_ABC_atributo_LSTM.py | Parados o Afiliados mensual por AtributoX 2027-2029 LSTM_v2.ipynb |
+| forecast_ABC_atributo_NP.py | Parados o Afiliados mensual por AtributoX 2027-2029 NP_v2.ipynb |
+| forecast_ABC_estatal_NP.py | Parados o Afiliados mensual estatal 2027-2029 NP_v2.ipynb |
+| forecast_ABC_estatal_LSTM.py | Parados o Afiliados mensual estatal 2027-2029 LSTM_v2.ipynb |
+| forecast_DE_atributo_XGBoost.py | Contratos mensual por AtributoX 2027-2029 XGBoost_v2.ipynb |
+| forecast_DE_atributo_NP.py | Contratos mensual por AtributoX 2027-2029 NP_v2.ipynb |
+| forecast_DE_estatal_XGBoost.py | Contratos mensual estatal 2027-2029 XGBoost_v2.ipynb |
+| forecast_DE_estatal_NP.py | Contratos mensual estatal 2027-2029 NP_v2.ipynb |
