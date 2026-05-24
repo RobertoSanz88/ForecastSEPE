@@ -11,3 +11,4 @@ lightning_logs/
 .claude/
 *.log
 *.ckpt
+
