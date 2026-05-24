@@ -1,17 +1,16 @@
 @echo off
 setlocal enabledelayedexpansion
-chcp 65001 >nul 2>&1
-title ForecastSEPE — Instalador
+title ForecastSEPE -- Instalador
 
 echo.
-echo  ╔══════════════════════════════════════════════════════════╗
-echo  ║        ForecastSEPE — Instalador completo               ║
-echo  ║        Observatorio de las Ocupaciones · SEPE            ║
-echo  ╚══════════════════════════════════════════════════════════╝
+echo  ============================================================
+echo   ForecastSEPE -- Instalador completo
+echo   Observatorio de las Ocupaciones - SEPE
+echo  ============================================================
 echo.
 echo  Este script instala todo lo necesario para usar ForecastSEPE:
-echo    1. Miniconda (Python)   — si no esta instalado
-echo    2. Git                  — si no esta instalado
+echo    1. Miniconda (Python)   - si no esta instalado
+echo    2. Git                  - si no esta instalado
 echo    3. Repositorio ForecastSEPE desde GitHub
 echo    4. Entorno NP-LSTM-XGBoost con todas las dependencias
 echo.
@@ -36,9 +35,9 @@ REM ====================================================================
 REM  PASO 1: MINICONDA
 REM ====================================================================
 echo.
-echo ════════════════════════════════════════════════════════════
+echo ============================================================
 echo  [1/4] Comprobando Miniconda / Anaconda...
-echo ════════════════════════════════════════════════════════════
+echo ============================================================
 
 set "CONDA_EXE="
 set "CONDA_BASE="
@@ -49,7 +48,6 @@ where conda >nul 2>&1
 if not errorlevel 1 (
     for /f "delims=" %%i in ('where conda') do set "CONDA_EXE=%%i"
     echo  [OK] conda encontrado en PATH: !CONDA_EXE!
-    REM Derivar CONDA_BASE (2 niveles arriba de Scripts\conda.exe)
     for %%A in ("!CONDA_EXE!") do set "CONDA_BASE=%%~dpA.."
     goto :conda_ready
 )
@@ -71,7 +69,7 @@ for %%P in (
     )
 )
 
-REM No encontrado — instalar Miniconda
+REM No encontrado - instalar Miniconda
 echo  [INFO] conda no encontrado. Instalando Miniconda...
 echo.
 echo  Descargando Miniconda (~100 MB)...
@@ -119,9 +117,9 @@ echo.
 REM ====================================================================
 REM  PASO 2: GIT
 REM ====================================================================
-echo ════════════════════════════════════════════════════════════
+echo ============================================================
 echo  [2/4] Comprobando Git...
-echo ════════════════════════════════════════════════════════════
+echo ============================================================
 
 set "GIT_EXE="
 
@@ -140,7 +138,7 @@ if exist "%GIT_DIR%\bin\git.exe" (
     goto :git_ready
 )
 
-REM No encontrado — instalar Git Portable
+REM No encontrado - instalar Git Portable
 echo  [INFO] git no encontrado. Instalando Git Portable...
 echo.
 echo  Descargando Git Portable (~63 MB)...
@@ -161,7 +159,6 @@ echo  Descomprimiendo Git Portable en %GIT_DIR%...
 echo  (Esto puede tardar 1-2 minutos)
 echo.
 
-REM PortableGit es un auto-extractor 7z — ejecutar con -o para destino y -y para no preguntar
 "%GIT_INSTALLER%" -o"%GIT_DIR%" -y
 if errorlevel 1 (
     echo.
@@ -182,9 +179,9 @@ echo.
 REM ====================================================================
 REM  PASO 3: CLONAR REPOSITORIO
 REM ====================================================================
-echo ════════════════════════════════════════════════════════════
+echo ============================================================
 echo  [3/4] Clonando repositorio ForecastSEPE...
-echo ════════════════════════════════════════════════════════════
+echo ============================================================
 
 if exist "%INSTALL_DIR%\.git" (
     echo  [INFO] El repositorio ya existe en %INSTALL_DIR%.
@@ -213,9 +210,9 @@ echo.
 REM ====================================================================
 REM  PASO 4: CREAR ENTORNO
 REM ====================================================================
-echo ════════════════════════════════════════════════════════════
+echo ============================================================
 echo  [4/4] Creando entorno %ENV_NAME%...
-echo ════════════════════════════════════════════════════════════
+echo ============================================================
 echo.
 echo  Esto incluye NeuralProphet, TensorFlow, XGBoost, scalecast...
 echo  Puede tardar 15-25 minutos la primera vez.
@@ -248,17 +245,8 @@ echo.
 REM Activar entorno e instalar paquetes
 call "%CONDA_ACTIVATE%" %ENV_NAME%
 
-echo  Instalando paquetes...
-if exist "%INSTALL_DIR%\requirements_entorno.txt" (
-    pip install -r "%INSTALL_DIR%\requirements_entorno.txt" --trusted-host pypi.org --trusted-host files.pythonhosted.org --trusted-host pypi.python.org
-) else if exist "%INSTALL_DIR%\requirements.txt" (
-    pip install -r "%INSTALL_DIR%\requirements.txt" --trusted-host pypi.org --trusted-host files.pythonhosted.org --trusted-host pypi.python.org
-) else (
-    echo  [ERROR] No se encuentra requirements.txt en %INSTALL_DIR%
-    pause
-    exit /b 1
-)
-
+echo  Instalando paquetes desde requirements.txt...
+pip install -r "%INSTALL_DIR%\requirements.txt" --trusted-host pypi.org --trusted-host files.pythonhosted.org --trusted-host pypi.python.org
 if errorlevel 1 (
     echo.
     echo  [AVISO] Algunos paquetes no se instalaron correctamente.
@@ -272,11 +260,11 @@ if errorlevel 1 (
 echo.
 
 REM ====================================================================
-REM  PASO 5: VERIFICACION Y ACCESO DIRECTO
+REM  VERIFICACION
 REM ====================================================================
-echo ════════════════════════════════════════════════════════════
+echo ============================================================
 echo  Verificando instalacion...
-echo ════════════════════════════════════════════════════════════
+echo ============================================================
 
 call "%CONDA_ACTIVATE%" %ENV_NAME%
 echo.
@@ -297,18 +285,16 @@ echo call "%INSTALL_DIR%\ForecastSEPE.bat"
 echo  [OK] Acceso directo creado: ForecastSEPE.bat en el Escritorio.
 
 echo.
-echo  ╔══════════════════════════════════════════════════════════╗
-echo  ║        INSTALACION COMPLETADA                            ║
-echo  ╠══════════════════════════════════════════════════════════╣
-echo  ║                                                          ║
-echo  ║  Para usar ForecastSEPE:                                 ║
-echo  ║    - Doble clic en ForecastSEPE.bat en el Escritorio     ║
-echo  ║    - Se abrira el navegador automaticamente              ║
-echo  ║                                                          ║
-echo  ║  Para actualizar:                                        ║
-echo  ║    - Ejecuta este instalador de nuevo                    ║
-echo  ║    - Detectara que ya esta instalado y hara git pull     ║
-echo  ║                                                          ║
-echo  ╚══════════════════════════════════════════════════════════╝
+echo  ============================================================
+echo   INSTALACION COMPLETADA
+echo  ============================================================
+echo.
+echo  Para usar ForecastSEPE:
+echo    - Doble clic en ForecastSEPE.bat en el Escritorio
+echo    - Se abrira el navegador automaticamente
+echo.
+echo  Para actualizar:
+echo    - Ejecuta este instalador de nuevo
+echo    - Detectara que ya esta instalado y hara git pull
 echo.
 pause
