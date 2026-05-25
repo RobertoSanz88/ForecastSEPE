@@ -26,7 +26,7 @@ pip install -r requirements.txt --trusted-host pypi.org --trusted-host files.pyt
 
 **Opción A — Script bat (Windows):**
 ```
-start.bat
+ForecastSEPE.bat
 ```
 El script activa el entorno virtual si existe, abre el navegador automáticamente y lanza el servidor.
 
@@ -92,7 +92,7 @@ ForecastSEPE/
 ├── uploads/          # CSVs temporales (no versionar)
 ├── .env
 ├── requirements.txt
-├── start.bat
+├── ForecastSEPE.bat
 └── CLAUDE.md         # Documentación de arquitectura para Claude Code
 ```
 
@@ -105,9 +105,3 @@ Los scripts actuales en `scripts/` son **stubs** que generan datos sintéticos r
 
 El protocolo de comunicación (`PROGRESS:`, `RESULT:`, `ERROR:`) y la estructura de los ficheros no cambiarán, por lo que la arquitectura es directamente reutilizable.
 
-## Entorno corporativo (Netskope SSL)
-
-Si recibes errores SSL al instalar dependencias, usa:
-```bash
-pip install -r requirements.txt --trusted-host pypi.org --trusted-host files.pythonhosted.org
-```
