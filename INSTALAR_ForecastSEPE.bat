@@ -131,12 +131,8 @@ echo  [OK] Miniconda instalado en %MINICONDA_DIR%.
 :conda_done
 REM Si se encontro en PATH pero no tenemos CONDA_BASE, derivarlo
 if not defined CONDA_BASE (
-    where conda >nul 2>&1
-    for /f "delims=" %%i in ('where conda 2^>nul') do (
-        set CONDA_EXE=%%i
-    )
-    REM Derivar base: conda.exe esta en Scripts\conda.exe
-    for %%A in ("%CONDA_EXE%") do set CONDA_BASE=%%~dpA..
+    for /f "delims=" %%i in ('where conda 2^>nul') do set CONDA_EXE=%%i
+    for /f "delims=" %%i in ('where conda 2^>nul') do set CONDA_BASE=%%~dpi..
 )
 
 REM Verificar activate
