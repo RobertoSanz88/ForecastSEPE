@@ -424,7 +424,7 @@ async def _stream_forecast(cmd: list):
 
     while True:
         try:
-            event = await asyncio.wait_for(q.get(), timeout=300.0)
+            event = await asyncio.wait_for(q.get(), timeout=7200.0)
         except asyncio.TimeoutError:
             yield _sse({"type": "error", "message": "Timeout: el script tardó demasiado."})
             break
