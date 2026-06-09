@@ -423,6 +423,10 @@ main { flex: 1; display: flex; overflow: hidden; }
   <section class="content">
     <div class="toolbar">
       <div class="view-toggle">
+        <button class="view-btn active" id="btn-horizon-3"></button>
+        <button class="view-btn" id="btn-horizon-2"></button>
+      </div>
+      <div class="view-toggle">
         <button class="view-btn active" id="btn-con-historico">Con histórico</button>
         <button class="view-btn" id="btn-solo-pronostico">Solo pronóstico</button>
       </div>
@@ -520,6 +524,7 @@ const S = {
   currentSse: null,
   currentJobId: null,
   showHistorico: true,
+  horizon: 3,
   selectedSerie: null,  // for atributo mode
   modelQueue: [],
 };
@@ -545,6 +550,8 @@ const btnNuevo       = $('btn-nuevo');
 const btnEnsemble    = $('btn-ensemble');
 const btnExcel       = $('btn-excel');
 const btnCancelar    = $('btn-cancelar');
+const btnHorizon3 = $('btn-horizon-3');
+const btnHorizon2 = $('btn-horizon-2');
 const btnConHistorico = $('btn-con-historico');
 const btnSoloPronostico = $('btn-solo-pronostico');
 const toast          = $('toast');
@@ -829,6 +836,22 @@ document.querySelectorAll('.model-card').forEach(card => {
   });
 });
 
+// ── HORIZON TOGGLE ────────────────────────────────────────────────────────
+const _nowYear = new Date().getFullYear();
+btnHorizon3.textContent = String(_nowYear + 3);
+btnHorizon2.textContent = String(_nowYear + 2);
+
+btnHorizon3.addEventListener('click', () => {
+  S.horizon = 3;
+  btnHorizon3.classList.add('active');
+  btnHorizon2.classList.remove('active');
+});
+btnHorizon2.addEventListener('click', () => {
+  S.horizon = 2;
+  btnHorizon2.classList.add('active');
+  btnHorizon3.classList.remove('active');
+});
+
 // ── VIEW TOGGLE ───────────────────────────────────────────────────────────
 btnConHistorico.addEventListener('click', () => {
   S.showHistorico = true;
@@ -888,6 +911,7 @@ function startNextModel() {
     csv_path: S.csvPath,
   });
   if (S.modo === 'atributo' && S.atributo) params.set('atributo', S.atributo);
+  params.set('horizon', S.horizon);
 
   const sse = new EventSource('/run-forecast?' + params.toString());
   S.currentSse = sse;

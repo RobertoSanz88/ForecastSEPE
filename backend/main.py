@@ -484,6 +484,7 @@ async def run_forecast(
     modelo:   str = Query(...),
     csv_path: str = Query(...),
     atributo: Optional[str] = Query(None),
+    horizon:  int = Query(3),
 ):
     try:
         grupo = get_metric_group(metrica)
@@ -505,7 +506,7 @@ async def run_forecast(
         raise HTTPException(status_code=400, detail="CSV no encontrado en el servidor")
 
     now   = datetime.now().year
-    f_end = f"{now + 3}-12"
+    f_end = f"{now + horizon}-12"
     last_date = read_last_csv_date(csv_file)
     f_start   = next_month_str(last_date) if last_date else f"{now + 1}-01"
 
