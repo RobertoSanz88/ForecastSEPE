@@ -73,9 +73,9 @@ NP_DE_ATRIBUTO_PARAMS = {
 # Contratos mensual estatal 2027-2029 NP_v2.ipynb
 NP_DE_ESTATAL_PARAMS = {
     'grid': {
-        'growth'           : ['linear', 'discontinuous'],
-        'n_changepoints'   : [10, 20, 50],
-        'seasonality_mode' : ['additive', 'multiplicative'],
+        'growth'           : ['linear'], #, 'discontinuous'],
+        'n_changepoints'   : [10], #, 20, 50],
+        'seasonality_mode' : ['additive'], #, 'multiplicative'],
 
     }, 
     'nlags': 0,
@@ -107,10 +107,10 @@ XGBOOST_ATRIBUTO_PARAMS = {
 # Contratos mensual estatal 2027-2029 XGBoost_v2.ipynb
 XGBOOST_ESTATAL_PARAMS = {
     'grid': {
-        'max_depth'       : [3, 5, 10],
-        'learning_rate'   : [0.01, 0.1, 0.5],
-        'n_estimators'    : [500, 1000, 2000],
-        'colsample_bytree': [0.4, 0.7, 1],
+        'max_depth'       : [3], #, 5, 10],
+        'learning_rate'   : [0.01], #, 0.1, 0.5],
+        'n_estimators'    : [500], #, 1000, 2000],
+        'colsample_bytree': [0.4], #, 0.7, 1],
     },
     'reg': {
         'reg_lambda': 0,
