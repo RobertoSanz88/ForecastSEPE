@@ -148,6 +148,35 @@ start.bat           # Windows: usa entorno NP-LSTM-XGBoost, abre navegador, lanz
 "C:\Users\sgei044\NP-LSTM-XGBoost\python.exe" -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
 ```
 
+## Versionado y desarrollo paralelo (v1.0 / v2.0-dev)
+
+Esta rama (`main`) es la **versión 1.0 estable**, congelada en el tag `v1.0`
+(commit `602f4c9`). Es la que instalan y actualizan los usuarios finales del
+SEPE vía `INSTALAR_ForecastSEPE.bat` (clona/hace `git pull` sobre `main`).
+**No se debe modificar directamente** — cualquier desarrollo nuevo (modelos
+adicionales, cambios de fondo) se hace en la rama `v2.0-dev`.
+
+El desarrollo de la 2.0 vive en un **git worktree** separado, no en un clon
+independiente — comparte el mismo `.git` que esta carpeta, así que no hay
+dos historiales que sincronizar a mano:
+
+| Carpeta | Rama | Lanzador | Puerto |
+|---------|------|----------|--------|
+| `C:\Users\rsanz\ForecastSEPE` | `main` (v1.0) | `ForecastSEPE.bat` | 8765 |
+| `C:\Users\rsanz\ForecastSEPE-v2` | `v2.0-dev` | `ForecastSEPE-v2-DEV.bat` | 8766 |
+
+Ambas pueden ejecutarse a la vez sin conflicto (puertos distintos).
+
+**Flujo al terminar la 2.0:** fusionar `v2.0-dev` → `main`, crear tag `v2.0`,
+y hacer push. Solo en ese momento los usuarios finales recibirán la 2.0 en
+su siguiente `git pull`.
+
+**Instalador beta para v2.0-dev:** pendiente de crear (`INSTALAR_ForecastSEPE_v2.bat`).
+Se hará cuando el modelo nuevo esté integrado, ya que probablemente necesite
+un entorno conda propio (versión de Python/librerías distinta a
+`NP-LSTM-XGBoost`) para no interferir con la instalación estable de los
+compañeros.
+
 ## Dimensiones de UI
 - **Header:** 72px de alto, logo 44px, título 24px, subtítulo 13px
 - **Footer:** padding 14px 16px, botones con padding 10px 22px / font-size 13px
