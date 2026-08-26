@@ -92,19 +92,19 @@ echo  Python: %PYTHON_EXE%
 
 REM --- Lanzar uvicorn en ventana separada ---
 echo.
-echo  Arrancando servidor en http://%HOST_IP%:8765 ...
+echo  Arrancando servidor en http://%HOST_IP%:8001 ...
 echo  (No cierres la ventana negra del servidor)
 echo.
 
 if defined SSL_CERT (
-    start cmd /k "cd /d "%PROJECT_DIR%" && set SSL_CERT_FILE=%SSL_CERT% && "%PYTHON_EXE%" -m uvicorn backend.main:app --host 0.0.0.0 --port 8765"
+    start cmd /k "cd /d "%PROJECT_DIR%" && set SSL_CERT_FILE=%SSL_CERT% && "%PYTHON_EXE%" -m uvicorn backend.main:app --host 0.0.0.0 --port 8001"
 ) else (
-    start cmd /k "cd /d "%PROJECT_DIR%" && "%PYTHON_EXE%" -m uvicorn backend.main:app --host 0.0.0.0 --port 8765"
+    start cmd /k "cd /d "%PROJECT_DIR%" && "%PYTHON_EXE%" -m uvicorn backend.main:app --host 0.0.0.0 --port 8001"
 )
 
 REM --- Esperar y abrir navegador ---
 timeout /t 5 /nobreak >nul
-start "" "http://%HOST_IP%:8765"
-echo  [OK] Navegador abierto en http://%HOST_IP%:8765
+start "" "http://%HOST_IP%:8001"
+echo  [OK] Navegador abierto en http://%HOST_IP%:8001
 echo.
 echo  Para detener: cierra la ventana del servidor.
