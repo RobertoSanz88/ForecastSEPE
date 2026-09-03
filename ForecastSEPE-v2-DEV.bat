@@ -111,6 +111,11 @@ if not defined TIMESFM_PYTHON_EXE if exist "C:\ProgramData\anaconda3\envs\timesf
 if not defined TIMESFM_PYTHON_EXE if exist "C:\ProgramData\miniconda3\envs\timesfm_env\python.exe" (
     set TIMESFM_PYTHON_EXE=C:\ProgramData\miniconda3\envs\timesfm_env\python.exe
 )
+REM entorno creado con "python -m venv timesfm_env" directamente en la carpeta
+REM de usuario (no via conda create, sin la carpeta "envs\" de por medio)
+if not defined TIMESFM_PYTHON_EXE if exist "%USERPROFILE%\timesfm_env\python.exe" (
+    set TIMESFM_PYTHON_EXE=%USERPROFILE%\timesfm_env\python.exe
+)
 
 if defined TIMESFM_PYTHON_EXE (
     echo  TimesFM: %TIMESFM_PYTHON_EXE%
@@ -143,3 +148,7 @@ echo.
 echo  Si da 504 usando la IP de LAN, usa http://127.0.0.1:8766 (Netskope
 echo  intercepta el trafico por IP en esta red).
 echo  Para detener: cierra la ventana del servidor.
+echo.
+echo  Pulsa una tecla para cerrar esta ventana (el servidor sigue activo
+echo  en su propia ventana negra aunque cierres esta)...
+pause >nul
