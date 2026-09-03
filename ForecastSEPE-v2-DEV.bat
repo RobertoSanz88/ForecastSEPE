@@ -120,8 +120,12 @@ if defined TIMESFM_PYTHON_EXE (
 )
 
 REM --- Lanzar uvicorn en ventana separada ---
+REM El servidor escucha en 0.0.0.0 (accesible tambien via %HOST_IP% si hace
+REM falta desde otro equipo), pero el navegador se abre con 127.0.0.1: el
+REM proxy corporativo Netskope intercepta el trafico por IP de LAN y devuelve
+REM 504, mientras que localhost/127.0.0.1 no pasa por ahi.
 echo.
-echo  Arrancando servidor DEV en http://%HOST_IP%:8766 ...
+echo  Arrancando servidor DEV en http://127.0.0.1:8766 (LAN: http://%HOST_IP%:8766) ...
 echo  (No cierres la ventana negra del servidor)
 echo.
 
@@ -131,9 +135,11 @@ if defined SSL_CERT (
     start cmd /k "cd /d "%PROJECT_DIR%" && set TIMESFM_PYTHON_EXE=%TIMESFM_PYTHON_EXE% && "%PYTHON_EXE%" -m uvicorn backend.main:app --host 0.0.0.0 --port 8766"
 )
 
-REM --- Esperar y abrir navegador ---
+REM --- Esperar y abrir navegador (localhost, no la IP de LAN -- ver nota arriba) ---
 timeout /t 5 /nobreak >nul
-start "" "http://%HOST_IP%:8766"
-echo  [OK] Navegador abierto en http://%HOST_IP%:8766
+start "" "http://127.0.0.1:8766"
+echo  [OK] Navegador abierto en http://127.0.0.1:8766
 echo.
+echo  Si da 504 usando la IP de LAN, usa http://127.0.0.1:8766 (Netskope
+echo  intercepta el trafico por IP en esta red).
 echo  Para detener: cierra la ventana del servidor.
