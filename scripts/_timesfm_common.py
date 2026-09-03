@@ -256,6 +256,16 @@ def resolve_point_channel(metrica: str, params: dict) -> int:
     return overrides.get(metrica, params['point_channel'])
 
 
+def resolve_ft_ctx_grid(metrica: str, params: dict) -> list:
+    """FT_CTX_GRID efectivo para `metrica`: usa params['ft_ctx_grid'] (grid
+    completo, para métricas aún sin validar) salvo que exista una entrada en
+    params['ft_ctx_grid_overrides'] -- ahí se fija un único valor ya validado
+    (ver TIMESFM_*_ESTATAL_PARAMS en config.py), y el bucle de grid search se
+    reduce a un solo candidato sin necesidad de tocar su lógica."""
+    overrides = params.get('ft_ctx_grid_overrides', {})
+    return overrides.get(metrica, params['ft_ctx_grid'])
+
+
 def run_timesfm_estatal_forecast(metrica: str, csv_path: str, params: dict, model_dir: str,
                                   f_end_override: str = None) -> dict:
     """Pipeline completo: carga de datos, selección automática de FT_CTX por
@@ -269,7 +279,7 @@ def run_timesfm_estatal_forecast(metrica: str, csv_path: str, params: dict, mode
     fixed_lr      = params['lr']
     fixed_layers  = params['layers']
     point_channel = resolve_point_channel(metrica, params)
-    ft_ctx_grid   = params['ft_ctx_grid']
+    ft_ctx_grid   = resolve_ft_ctx_grid(metrica, params)
     ft_hor        = params['ft_hor']
     ft_step       = params['ft_step']
     ft_epochs     = params['ft_epochs']
