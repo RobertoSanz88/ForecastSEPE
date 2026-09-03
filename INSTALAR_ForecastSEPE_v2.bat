@@ -11,10 +11,8 @@ echo  Este script SOLO instala lo NUEVO de la version 2.0 (modelo
 echo  TimesFM): no clona ni toca el repositorio ni el entorno
 echo  NP-LSTM-XGBoost -- eso lo hace INSTALAR_ForecastSEPE.bat.
 echo.
-echo  Requisitos (ejecuta antes INSTALAR_ForecastSEPE.bat si te falta
-echo  alguno):
-echo    - conda / Miniconda ya instalado
-echo    - Este script colocado en la raiz del proyecto ForecastSEPE
+echo  Requisito: conda / Miniconda ya instalado (ejecuta antes
+echo  INSTALAR_ForecastSEPE.bat si te falta).
 echo.
 echo  Instala:
 echo    1. Entorno conda "timesfm_env"       - si no existe
