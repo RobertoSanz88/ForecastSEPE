@@ -141,13 +141,27 @@ echo ============================================================
 echo  [3/3] Comprobando checkpoint de TimesFM 2.5...
 echo ============================================================
 
-if exist "%MODEL_DIR%\model.safetensors" (
-    echo  [INFO] El checkpoint ya existe en %MODEL_DIR%. Saltando descarga.
+REM Umbral de tamano minimo (bytes) para dar el checkpoint por bueno --
+REM el real pesa ~925MB; cualquier cosa muy por debajo (p.ej. una pagina de
+REM bloqueo del proxy corporativo en vez del fichero real) se descarta.
+set MIN_SAFETENSORS_BYTES=500000000
+
+set FSIZE=0
+if exist "%MODEL_DIR%\model.safetensors" for %%A in ("%MODEL_DIR%\model.safetensors") do set FSIZE=%%~zA
+
+if %FSIZE% GEQ %MIN_SAFETENSORS_BYTES% (
+    echo  [INFO] El checkpoint ya existe en %MODEL_DIR% ^(%FSIZE% bytes^). Saltando descarga.
     goto :model_ready
 )
 
-echo  [INFO] Checkpoint no encontrado. Descargando (~925MB, puede tardar
-echo         varios minutos)...
+if exist "%MODEL_DIR%\model.safetensors" (
+    echo  [AVISO] Hay un model.safetensors en %MODEL_DIR% pero pesa muy poco
+    echo          ^(%FSIZE% bytes^) -- no es el fichero real, se descarta y se
+    echo          vuelve a intentar la descarga.
+    del "%MODEL_DIR%\model.safetensors" >nul 2>&1
+)
+
+echo  [INFO] Descargando checkpoint (~925MB, puede tardar varios minutos)...
 echo.
 
 if not exist "%MODEL_DIR%" mkdir "%MODEL_DIR%"
@@ -155,20 +169,46 @@ if not exist "%MODEL_DIR%" mkdir "%MODEL_DIR%"
 echo  Descargando config.json...
 curl -kL -o "%MODEL_DIR%\config.json" "%MODEL_REPO_URL%/config.json"
 if errorlevel 1 (
-    echo  [ERROR] No se pudo descargar config.json.
-    echo          Comprueba tu conexion a internet.
-    goto :error_exit
+    echo  [ERROR] curl fallo al descargar config.json.
+    goto :model_download_failed
 )
 
 echo  Descargando model.safetensors (~925MB, paciencia)...
 curl -kL -o "%MODEL_DIR%\model.safetensors" "%MODEL_REPO_URL%/model.safetensors"
 if errorlevel 1 (
-    echo  [ERROR] No se pudo descargar model.safetensors.
-    echo          Comprueba tu conexion a internet.
-    goto :error_exit
+    echo  [ERROR] curl fallo al descargar model.safetensors.
+    goto :model_download_failed
+)
+
+REM Verificar que lo descargado sea el fichero real, no una pagina de
+REM bloqueo del proxy corporativo (Netskope) -- curl no distingue eso solo,
+REM devuelve "exito" igualmente porque la peticion HTTP en si no falla.
+set FSIZE=0
+for %%A in ("%MODEL_DIR%\model.safetensors") do set FSIZE=%%~zA
+if %FSIZE% LSS %MIN_SAFETENSORS_BYTES% (
+    echo  [AVISO] La descarga se completo pero el fichero pesa solo %FSIZE%
+    echo          bytes -- probablemente el proxy corporativo ha sustituido
+    echo          el fichero real por una pagina de bloqueo/aviso.
+    goto :model_download_failed
 )
 
 echo  [OK] Checkpoint descargado en %MODEL_DIR%.
+goto :model_ready
+
+:model_download_failed
+echo.
+echo  ------------------------------------------------------------
+echo   Descarga automatica no disponible en esta red -- alternativa manual:
+echo  ------------------------------------------------------------
+echo    1. Abre en tu navegador normal (el que ya usas cada dia):
+echo       https://huggingface.co/google/timesfm-2.5-200m-pytorch/tree/main
+echo    2. Descarga los dos ficheros: config.json y model.safetensors
+echo    3. Colocalos juntos en esta carpeta:
+echo       %MODEL_DIR%
+echo    4. Vuelve a ejecutar este instalador -- detectara que ya estan y
+echo       no volvera a intentar la descarga automatica.
+echo.
+goto :error_exit
 
 :model_ready
 echo.
