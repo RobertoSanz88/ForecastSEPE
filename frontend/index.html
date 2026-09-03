@@ -408,6 +408,13 @@ main { flex: 1; display: flex; overflow: hidden; }
             </div>
             <div class="model-check"></div>
           </div>
+          <div class="model-card" data-model="TimesFM">
+            <div class="model-dot" style="background:#7C3AED"></div>
+            <div class="model-info">
+              <div class="model-name">TimesFM</div>
+            </div>
+            <div class="model-check"></div>
+          </div>
         </div>
         <div class="model-note" id="model-note"></div>
       </div>
@@ -435,6 +442,7 @@ main { flex: 1; display: flex; overflow: hidden; }
         <div class="legend-item"><div class="legend-line" style="background:#04A06E"></div>NeuralProphet</div>
         <div class="legend-item"><div class="legend-line dashed"></div>LSTM</div>
         <div class="legend-item"><div class="legend-line" style="background:#F3CD00"></div>XGBoost</div>
+        <div class="legend-item"><div class="legend-line" style="background:#7C3AED"></div>TimesFM</div>
         <div class="legend-item"><div class="legend-line" style="background:#154481"></div>Ensemble</div>
       </div>
     </div>
@@ -506,8 +514,10 @@ const METRIC_GROUP = {
   'Parados': 'abc', 'Afiliados': 'abc', 'Demandantes': 'abc',
   'Contratos': 'de', 'P. Contratadas': 'de',
 };
-const MODEL_GROUPS  = { 'NP': ['abc','de'], 'LSTM': ['abc'], 'XGBoost': ['de'] };
-const MODEL_COLORS  = { 'NP': '#04A06E', 'LSTM': '#008DBE', 'XGBoost': '#F3CD00', 'Ensemble': '#154481' };
+const MODEL_GROUPS  = { 'NP': ['abc','de'], 'LSTM': ['abc'], 'XGBoost': ['de'], 'TimesFM': ['abc','de'] };
+const MODEL_COLORS  = { 'NP': '#04A06E', 'LSTM': '#008DBE', 'XGBoost': '#F3CD00', 'TimesFM': '#7C3AED', 'Ensemble': '#154481' };
+// TimesFM: solo modo "estatal" por ahora (ver updateModelCards) -- "atributo" se añadirá más adelante.
+const MODEL_MODOS   = { 'TimesFM': ['estatal'] };
 const MODEL_DASHES = { 'LSTM': 'dash' };
 
 // ── STATE ─────────────────────────────────────────────────────────────────
@@ -638,7 +648,9 @@ function updateModelCards() {
   let lostSelection = false;
   document.querySelectorAll('.model-card').forEach(card => {
     const model = card.dataset.model;
-    const available = !group || MODEL_GROUPS[model].includes(group);
+    const groupOk = !group || MODEL_GROUPS[model].includes(group);
+    const modoOk  = !MODEL_MODOS[model] || MODEL_MODOS[model].includes(S.modo);
+    const available = groupOk && modoOk;
     card.classList.toggle('disabled', !available);
     if (!available && S.selectedModels.has(model)) {
       S.selectedModels.delete(model);
@@ -648,6 +660,8 @@ function updateModelCards() {
         notes.push('XGBoost no disponible para métricas ABC');
       if (model === 'LSTM' && group === 'de')
         notes.push('LSTM no disponible para métricas DE');
+      if (model === 'TimesFM' && !modoOk)
+        notes.push('TimesFM todavía no disponible para modo "por atributo"');
     }
   });
   // Auto-select NP if the previously selected model became disabled
@@ -809,6 +823,7 @@ document.querySelectorAll('.toggle-pill').forEach(pill => {
     }
     S.modo = pill.dataset.modo;
     updateModoUI();
+    updateModelCards();
     buildExpectedFilename();
     updateRunBtn();
     updateFooterBtns();

@@ -123,3 +123,45 @@ XGBOOST_ESTATAL_PARAMS = {
         'step_months' : 12,
     },
 }
+
+# ── TimesFM 2.5 (recursivo) ──────────────────────────────────────────────────
+# notebooks/forecast_ABCDE_estatal_TimesFM.ipynb — barrido manual completo
+# (FT_CTX, capas, lr, log-transform, canal de punto media/mediana) por grupo
+# de métrica. Validado empíricamente para Parados/Afiliados (grupo ABC) y
+# Contratos (grupo DE); Demandantes y P. Contratadas heredan las reglas de su
+# grupo pero no se han probado todavía.
+
+# Parados o Afiliados mensual estatal — forecast_ABCDE_estatal_TimesFM.ipynb
+TIMESFM_ABC_ESTATAL_PARAMS = {
+    'log_transform':  False,
+    'lr':             5e-6,
+    'layers':         4,
+    'point_channel':  5,          # mediana
+    'ft_ctx_grid':    [24, 36],   # 24 ganó en Parados, 36 en Afiliados
+    'ft_hor':         12,         # igual a recursive_step, por coherencia entrenamiento/uso
+    'ft_step':        3,
+    'ft_epochs':      15,
+    'recursive_step': 12,
+    'val_months':     36,
+}
+
+# Contratos mensual estatal — forecast_ABCDE_estatal_TimesFM.ipynb
+# Oscilaciones estacionales mucho más extremas en términos relativos (picos
+# ~3-4x los valles) que el grupo ABC -- de ahí el log-transform y el lr mayor.
+TIMESFM_DE_ESTATAL_PARAMS = {
+    'log_transform':  True,
+    'lr':             5e-5,
+    'layers':         4,
+    'point_channel':  5,          # mediana por defecto
+    # Excepción SOLO para Contratos (no para todo el grupo, ver notebook): con
+    # lr=5e-6 media/mediana empataban (21% ambas), pero con lr=5e-5 (el que
+    # ganó) la media da 7.79% y la mediana 11.45% -- ya no empatan. Sin
+    # validar para P. Contratadas, que se queda con la mediana por defecto.
+    'point_channel_overrides': {'Contratos': 0},
+    'ft_ctx_grid':    [24, 36],   # 36 ganó en Contratos
+    'ft_hor':         12,
+    'ft_step':        3,
+    'ft_epochs':      15,
+    'recursive_step': 12,
+    'val_months':     36,
+}

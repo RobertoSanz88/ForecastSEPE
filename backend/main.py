@@ -55,7 +55,18 @@ SCRIPT_MAP = {
     ("de",  "estatal",   "XGBoost"): "forecast_DE_estatal_XGBoost.py",
     ("de",  "atributo",  "NP"):      "forecast_DE_atributo_NP.py",
     ("de",  "atributo",  "XGBoost"): "forecast_DE_atributo_XGBoost.py",
+    # TimesFM: un único script sirve a los dos grupos (decide internamente los
+    # hiperparámetros según la métrica -- ver config.py). Solo "estatal" por
+    # ahora; "atributo" se añadirá más adelante.
+    ("abc", "estatal",   "TimesFM"): "forecast_ABCDE_estatal_TimesFM.py",
+    ("de",  "estatal",   "TimesFM"): "forecast_ABCDE_estatal_TimesFM.py",
 }
+
+# TimesFM corre en su propio entorno conda (paquete `timesfm`, incompatible en
+# principio con el entorno NP-LSTM-XGBoost que usa el resto de la app) -- ruta
+# al python.exe de ese entorno, configurable en .env:
+#   TIMESFM_PYTHON_EXE=C:\ruta\a\envs\timesfm_env\python.exe
+TIMESFM_PYTHON_EXE = os.getenv("TIMESFM_PYTHON_EXE")
 
 # Jobs en curso esperando input del usuario: job_id → {"event": Event, "value": list}
 _active_jobs: dict = {}
@@ -501,6 +512,17 @@ async def run_forecast(
         raise HTTPException(status_code=500,
                             detail=f"Script no encontrado: {script_name}")
 
+    if modelo == "TimesFM":
+        if not TIMESFM_PYTHON_EXE:
+            raise HTTPException(
+                status_code=500,
+                detail="TimesFM requiere la variable TIMESFM_PYTHON_EXE en .env "
+                       "(ruta al python.exe del entorno timesfm_env).",
+            )
+        python_exe = TIMESFM_PYTHON_EXE
+    else:
+        python_exe = sys.executable
+
     csv_file = Path(csv_path)
     if not csv_file.exists():
         raise HTTPException(status_code=400, detail="CSV no encontrado en el servidor")
@@ -518,7 +540,7 @@ async def run_forecast(
         script_metrica = metrica
 
     cmd = [
-        sys.executable, str(script_path.resolve()),
+        python_exe, str(script_path.resolve()),
         "--metrica", script_metrica,
         "--modelo",  modelo,
         "--csv",     str(csv_file.resolve()),
