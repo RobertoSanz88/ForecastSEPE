@@ -348,6 +348,15 @@ async def _stream_forecast(cmd: list):
 
     def run_script() -> None:
         try:
+            python_exe = cmd[0]
+            if not Path(python_exe).is_file():
+                emit({"type": "error",
+                      "message": f"El intérprete de Python no existe o no es un fichero válido: "
+                                 f"'{python_exe}'. Si es TimesFM, revisa el entorno timesfm_env "
+                                 f"(ejecuta INSTALAR_ForecastSEPE_v2.bat si falta)."})
+                emit({"type": "done"})
+                return
+
             _env = os.environ.copy()
             _env["PYTHONIOENCODING"] = "utf-8"
             proc = subprocess.Popen(
@@ -422,8 +431,8 @@ async def _stream_forecast(cmd: list):
                       "message": f"Error en script (código {proc.returncode}): {stderr}"})
             emit({"type": "done"})
         except Exception as e:
-            logger.error("Error en run_script:\n%s", traceback.format_exc())
-            emit({"type": "error", "message": str(e)})
+            logger.error("Error en run_script (cmd=%s):\n%s", cmd, traceback.format_exc())
+            emit({"type": "error", "message": f"{e} (ejecutando: {cmd[0]})"})
             emit({"type": "done"})
         finally:
             _active_jobs.pop(job_id, None)
