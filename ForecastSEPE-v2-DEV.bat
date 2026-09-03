@@ -90,6 +90,35 @@ exit /b 1
 :python_found
 echo  Python: %PYTHON_EXE%
 
+REM --- Buscar Python del entorno timesfm_env (opcional -- modelo TimesFM) ---
+set TIMESFM_PYTHON_EXE=
+
+if exist "%USERPROFILE%\Miniconda3\envs\timesfm_env\python.exe" (
+    set TIMESFM_PYTHON_EXE=%USERPROFILE%\Miniconda3\envs\timesfm_env\python.exe
+)
+if not defined TIMESFM_PYTHON_EXE if exist "%USERPROFILE%\miniconda3\envs\timesfm_env\python.exe" (
+    set TIMESFM_PYTHON_EXE=%USERPROFILE%\miniconda3\envs\timesfm_env\python.exe
+)
+if not defined TIMESFM_PYTHON_EXE if exist "%USERPROFILE%\AppData\Local\anaconda3\envs\timesfm_env\python.exe" (
+    set TIMESFM_PYTHON_EXE=%USERPROFILE%\AppData\Local\anaconda3\envs\timesfm_env\python.exe
+)
+if not defined TIMESFM_PYTHON_EXE if exist "%USERPROFILE%\anaconda3\envs\timesfm_env\python.exe" (
+    set TIMESFM_PYTHON_EXE=%USERPROFILE%\anaconda3\envs\timesfm_env\python.exe
+)
+if not defined TIMESFM_PYTHON_EXE if exist "C:\ProgramData\anaconda3\envs\timesfm_env\python.exe" (
+    set TIMESFM_PYTHON_EXE=C:\ProgramData\anaconda3\envs\timesfm_env\python.exe
+)
+if not defined TIMESFM_PYTHON_EXE if exist "C:\ProgramData\miniconda3\envs\timesfm_env\python.exe" (
+    set TIMESFM_PYTHON_EXE=C:\ProgramData\miniconda3\envs\timesfm_env\python.exe
+)
+
+if defined TIMESFM_PYTHON_EXE (
+    echo  TimesFM: %TIMESFM_PYTHON_EXE%
+) else (
+    echo  TimesFM: entorno timesfm_env no encontrado -- ese modelo no estara disponible.
+    echo           Ejecuta INSTALAR_ForecastSEPE_v2.bat si lo necesitas.
+)
+
 REM --- Lanzar uvicorn en ventana separada ---
 echo.
 echo  Arrancando servidor DEV en http://%HOST_IP%:8766 ...
@@ -97,9 +126,9 @@ echo  (No cierres la ventana negra del servidor)
 echo.
 
 if defined SSL_CERT (
-    start cmd /k "cd /d "%PROJECT_DIR%" && set SSL_CERT_FILE=%SSL_CERT% && "%PYTHON_EXE%" -m uvicorn backend.main:app --host 0.0.0.0 --port 8766"
+    start cmd /k "cd /d "%PROJECT_DIR%" && set SSL_CERT_FILE=%SSL_CERT% && set TIMESFM_PYTHON_EXE=%TIMESFM_PYTHON_EXE% && "%PYTHON_EXE%" -m uvicorn backend.main:app --host 0.0.0.0 --port 8766"
 ) else (
-    start cmd /k "cd /d "%PROJECT_DIR%" && "%PYTHON_EXE%" -m uvicorn backend.main:app --host 0.0.0.0 --port 8766"
+    start cmd /k "cd /d "%PROJECT_DIR%" && set TIMESFM_PYTHON_EXE=%TIMESFM_PYTHON_EXE% && "%PYTHON_EXE%" -m uvicorn backend.main:app --host 0.0.0.0 --port 8766"
 )
 
 REM --- Esperar y abrir navegador ---
