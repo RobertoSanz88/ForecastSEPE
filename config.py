@@ -137,7 +137,12 @@ TIMESFM_ABC_ESTATAL_PARAMS = {
     'lr':             5e-6,
     'layers':         4,
     'point_channel':  5,          # mediana
-    'ft_ctx_grid':    [24, 36],   # 24 ganó en Parados, 36 en Afiliados
+    'ft_ctx_grid':    [24, 36],   # fallback para métricas sin validar (p.ej. Demandantes)
+    # El FT_CTX óptimo es una propiedad estructural de la serie agregada
+    # nacional (estacionalidad/tendencia) que no cambia con cada actualización
+    # mensual de datos -- ya validado empíricamente, así que se fija por
+    # métrica y se salta el grid search (mitad de coste de entrenamiento).
+    'ft_ctx_grid_overrides': {'Parados': [24], 'Afiliados': [36]},
     'ft_hor':         12,         # igual a recursive_step, por coherencia entrenamiento/uso
     'ft_step':        3,
     'ft_epochs':      15,
@@ -158,7 +163,8 @@ TIMESFM_DE_ESTATAL_PARAMS = {
     # ganó) la media da 7.79% y la mediana 11.45% -- ya no empatan. Sin
     # validar para P. Contratadas, que se queda con la mediana por defecto.
     'point_channel_overrides': {'Contratos': 0},
-    'ft_ctx_grid':    [24, 36],   # 36 ganó en Contratos
+    'ft_ctx_grid':    [24, 36],   # fallback para métricas sin validar (P. Contratadas)
+    'ft_ctx_grid_overrides': {'Contratos': [36]},  # ver nota en TIMESFM_ABC_ESTATAL_PARAMS
     'ft_hor':         12,
     'ft_step':        3,
     'ft_epochs':      15,
