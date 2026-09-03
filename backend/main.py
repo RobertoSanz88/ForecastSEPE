@@ -359,6 +359,13 @@ async def _stream_forecast(cmd: list):
 
             _env = os.environ.copy()
             _env["PYTHONIOENCODING"] = "utf-8"
+            # El subproceso hereda el PATH del entorno conda que lanzo uvicorn
+            # (NP-LSTM-XGBoost). Cuando python_exe es de OTRO entorno (p.ej.
+            # timesfm_env), eso puede meter dos copias distintas del runtime
+            # OpenMP/MKL (via torch/numpy) en el mismo arbol de proceso, lo que
+            # en Windows puede colgar el proceso en silencio (sin excepcion) al
+            # cargar el modelo. Este workaround estandar evita el bloqueo.
+            _env.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
             proc = subprocess.Popen(
                 cmd,
                 stdin=subprocess.PIPE,
