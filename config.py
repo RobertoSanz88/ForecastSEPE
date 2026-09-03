@@ -107,10 +107,10 @@ XGBOOST_ATRIBUTO_PARAMS = {
 # Contratos mensual estatal 2027-2029 XGBoost_v2.ipynb
 XGBOOST_ESTATAL_PARAMS = {
     'grid': {
-        'max_depth'       : [3], #, 5, 10],
-        'learning_rate'   : [0.01], #, 0.1, 0.5],
-        'n_estimators'    : [500], #, 1000, 2000],
-        'colsample_bytree': [0.4], #, 0.7, 1],
+        'max_depth'       : [3, 5, 10],
+        'learning_rate'   : [0.01, 0.1, 0.5],
+        'n_estimators'    : [500, 1000, 2000],
+        'colsample_bytree': [0.4, 0.7, 1],
     },
     'reg': {
         'reg_lambda': 0,
