@@ -225,6 +225,7 @@ def main():
             'pronostico':          pronostico,
             'intervalo_confianza': None,
             'mape':                round(float(best_mape), 2),
+            'hiperparametros':     best_params,
         }
 
         print('RESULT:' + json.dumps(result, ensure_ascii=False), flush=True)
