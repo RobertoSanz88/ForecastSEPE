@@ -55,11 +55,12 @@ SCRIPT_MAP = {
     ("de",  "estatal",   "XGBoost"): "forecast_DE_estatal_XGBoost.py",
     ("de",  "atributo",  "NP"):      "forecast_DE_atributo_NP.py",
     ("de",  "atributo",  "XGBoost"): "forecast_DE_atributo_XGBoost.py",
-    # TimesFM: un único script sirve a los dos grupos (decide internamente los
-    # hiperparámetros según la métrica -- ver config.py). Solo "estatal" por
-    # ahora; "atributo" se añadirá más adelante.
+    # TimesFM: un único script por modo sirve a los dos grupos (decide
+    # internamente los hiperparámetros según la métrica -- ver config.py).
     ("abc", "estatal",   "TimesFM"): "forecast_ABCDE_estatal_TimesFM.py",
     ("de",  "estatal",   "TimesFM"): "forecast_ABCDE_estatal_TimesFM.py",
+    ("abc", "atributo",  "TimesFM"): "forecast_ABCDE_atributo_TimesFM.py",
+    ("de",  "atributo",  "TimesFM"): "forecast_ABCDE_atributo_TimesFM.py",
 }
 
 # TimesFM corre en su propio entorno conda (paquete `timesfm`, incompatible en
