@@ -1302,10 +1302,11 @@ btnExcel.addEventListener('click', async () => {
       const { pronostico, ic } = getSeriesData(result);
       return {
         modelo,
-        pronostico:  pronostico || [],
-        ic_superior: ic?.superior || null,
-        ic_inferior: ic?.inferior || null,
-        mape:        result.mape ?? null,
+        pronostico:      pronostico || [],
+        ic_superior:     ic?.superior || null,
+        ic_inferior:     ic?.inferior || null,
+        mape:            result.mape ?? null,
+        hiperparametros: result.hiperparametros || null,
       };
     }
   });

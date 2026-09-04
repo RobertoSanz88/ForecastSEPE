@@ -625,12 +625,13 @@ async def cancel_forecast(req: CancelRequest):
 
 
 class ForecastSerie(BaseModel):
-    modelo:      str
-    pronostico:  Optional[list]  = None   # estatal: [{fecha, valor}]
-    ic_superior: Optional[list]  = None
-    ic_inferior: Optional[list]  = None
-    series:      Optional[dict]  = None   # atributo: {serie: {pronostico, ic_superior, ic_inferior}}
-    mape:        Optional[float] = None
+    modelo:          str
+    pronostico:      Optional[list]  = None   # estatal: [{fecha, valor}]
+    ic_superior:     Optional[list]  = None
+    ic_inferior:     Optional[list]  = None
+    series:          Optional[dict]  = None   # atributo: {serie: {pronostico, ic_superior, ic_inferior}}
+    mape:            Optional[float] = None
+    hiperparametros: Optional[dict]  = None   # solo estatal por ahora (NP/LSTM/XGBoost/TimesFM)
 
 
 class ExportRequest(BaseModel):
@@ -712,7 +713,7 @@ async def export_excel(req: ExportRequest):
 
     # Hoja MAPE
     _MODEL_DISPLAY = {'NP': 'NeuralProphet', 'LSTM': 'LSTM', 'XGBoost': 'XGBoost', 'Ensemble': 'Ensemble'}
-    mape_rows = [(s.modelo, s.mape) for s in req.series if s.mape is not None]
+    mape_rows = [(s.modelo, s.mape, s.hiperparametros) for s in req.series if s.mape is not None]
     if mape_rows:
         ws_mape = wb.create_sheet("MAPE")
         if req.modo == "atributo" and req.atributo:
@@ -721,9 +722,10 @@ async def export_excel(req: ExportRequest):
             title = "MAPE esperado 3 años"
         ws_mape.append([title])
         ws_mape.append([])
-        ws_mape.append(["Modelo", "MAPE %"])
-        for modelo, mape in mape_rows:
-            ws_mape.append([_MODEL_DISPLAY.get(modelo, modelo), f"{mape:.1f}%"])
+        ws_mape.append(["Modelo", "MAPE %", "Hiperparámetros"])
+        for modelo, mape, hp in mape_rows:
+            hp_str = ", ".join(f"{k}={v}" for k, v in hp.items()) if hp else ""
+            ws_mape.append([_MODEL_DISPLAY.get(modelo, modelo), f"{mape:.1f}%", hp_str])
 
     buf = io.BytesIO()
     wb.save(buf)
