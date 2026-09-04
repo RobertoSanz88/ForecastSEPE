@@ -516,8 +516,7 @@ const METRIC_GROUP = {
 };
 const MODEL_GROUPS  = { 'NP': ['abc','de'], 'LSTM': ['abc'], 'XGBoost': ['de'], 'TimesFM': ['abc','de'] };
 const MODEL_COLORS  = { 'NP': '#04A06E', 'LSTM': '#008DBE', 'XGBoost': '#F3CD00', 'TimesFM': '#7C3AED', 'Ensemble': '#154481' };
-// TimesFM: solo modo "estatal" por ahora (ver updateModelCards) -- "atributo" se añadirá más adelante.
-const MODEL_MODOS   = { 'TimesFM': ['estatal'] };
+const MODEL_MODOS   = { 'TimesFM': ['estatal', 'atributo'] };
 const MODEL_DASHES = { 'LSTM': 'dash' };
 
 // ── STATE ─────────────────────────────────────────────────────────────────
@@ -660,8 +659,6 @@ function updateModelCards() {
         notes.push('XGBoost no disponible para métricas ABC');
       if (model === 'LSTM' && group === 'de')
         notes.push('LSTM no disponible para métricas DE');
-      if (model === 'TimesFM' && !modoOk)
-        notes.push('TimesFM todavía no disponible para modo "por atributo"');
     }
   });
   // Auto-select NP if the previously selected model became disabled

@@ -420,3 +420,162 @@ def run_timesfm_estatal_forecast(metrica: str, csv_path: str, params: dict, mode
         },
     }
     return result
+
+
+def run_timesfm_atributo_forecast(metrica: str, atributo: str, df: 'pd.DataFrame', grupos: list,
+                                   params: dict, model_dir: str, f_end_override: str = None) -> dict:
+    """Pipeline completo por grupo (modo atributo): para cada grupo, backtest
+    con grid (FT_CTX x LOG_TRANSFORM, 4 combinaciones), fine-tuning final
+    sobre el 100% de su historico, y pronostico recursivo. Emite PROGRESS:
+    por stdout. Devuelve el dict `result` en el formato documentado en
+    CLAUDE.md (modo atributo).
+
+    `df` debe traer 'Fecha' ya parseada a datetime y las columnas de `grupos`
+    ya numericas -- el entry point se encarga de la carga/limpieza del CSV y
+    de aplicar el protocolo INPUT_REQUIRED si hay demasiadas columnas.
+
+    A diferencia de run_timesfm_estatal_forecast, aqui LOG_TRANSFORM no se
+    decide por el nombre de la metrica -- es una dimension mas del grid junto
+    a FT_CTX, elegida por grupo (ver notebooks/forecast_ABCDE_atributo_TimesFM.ipynb
+    para el detalle de por que hizo falta: un desglose puede tener una escala/
+    estacionalidad muy distinta al agregado nacional).
+    """
+    import datetime as _dt
+    import itertools
+
+    fixed_lr           = params['lr']
+    fixed_layers        = params['layers']
+    point_channel       = resolve_point_channel(metrica, params)
+    ft_ctx_grid         = params['ft_ctx_grid']
+    log_transform_grid  = params['log_transform_grid']
+    ft_hor              = params['ft_hor']
+    ft_step             = params['ft_step']
+    ft_epochs           = params['ft_epochs']
+    recursive_step      = params['recursive_step']
+    val_months          = params['val_months']
+
+    def progress(pct, msg):
+        print(f'PROGRESS:{pct}:{msg}', flush=True)
+
+    progress(5, 'Cargando modelo TimesFM 2.5...')
+    model, base_module, consts = load_timesfm_model(model_dir)
+
+    now = _dt.datetime.now().year
+    f_end = f_end_override if f_end_override else f'{now + 3}-12'
+    fecha_fin_pronostico   = pd.Timestamp(f_end + '-01')
+    ultima_fecha_historico = df['Fecha'].iloc[-1]
+    horizonte_meses = (
+        (fecha_fin_pronostico.year  - ultima_fecha_historico.year)  * 12 +
+        (fecha_fin_pronostico.month - ultima_fecha_historico.month)
+    )
+    if horizonte_meses > model.forecast_config.max_horizon:
+        raise ValueError(
+            f'HORIZONTE_MESES ({horizonte_meses}) supera max_horizon '
+            f'({model.forecast_config.max_horizon}) configurado en compile().'
+        )
+
+    q_low, q_high = 1, 9   # p10, p90 (canal 0=media, 1..9=deciles 0.1..0.9)
+    forecast_dates = pd.date_range(
+        ultima_fecha_historico + pd.DateOffset(months=1), periods=horizonte_meses, freq='MS'
+    )
+
+    series_out = {}
+    mapes = []
+    n_grupos = len(grupos)
+    combos = list(itertools.product(ft_ctx_grid, log_transform_grid))
+
+    for gi, grupo in enumerate(grupos):
+        grupo_lo = 10 + int(gi / n_grupos * 85)
+        grupo_hi = 10 + int((gi + 1) / n_grupos * 85)
+        progress(grupo_lo, f'Grupo {gi + 1}/{n_grupos}: {grupo}...')
+
+        all_values = df[grupo].values.astype(np.float32)
+        n = len(all_values)
+
+        if n < ft_ctx_grid[0] + val_months or np.isnan(all_values).all():
+            print(f'  [AVISO] Histórico insuficiente o vacío para "{grupo}" -- se omite.', flush=True)
+            continue
+
+        backtest_actual = all_values[n - val_months:]
+
+        best_mape  = float('inf')
+        ft_ctx     = ft_ctx_grid[0]
+        log_transform = log_transform_grid[0]
+
+        for ci, (candidate_ctx, candidate_log) in enumerate(combos):
+            slice_lo = grupo_lo + int(ci / len(combos) * (grupo_hi - grupo_lo) * 0.9)
+            slice_hi = grupo_lo + int((ci + 1) / len(combos) * (grupo_hi - grupo_lo) * 0.9)
+            label = f'{grupo}: FT_CTX={candidate_ctx}, LOG_TRANSFORM={candidate_log}'
+
+            all_values_model = np.log(all_values) if candidate_log else all_values
+            backtest_context = all_values_model[:n - val_months]
+
+            ft_windows_bt = build_ft_windows(all_values_model[:-val_months], candidate_ctx, ft_hor, ft_step)
+            ft_m_bt = make_ft_module(fixed_layers, base_module)
+            ft_m_bt = run_ft_training(
+                ft_m_bt, fixed_lr, ft_epochs, ft_windows_bt, point_channel,
+                progress_range=(slice_lo, slice_hi), progress_label=label,
+            )
+
+            bt_point_model, _ = recursive_forecast(model, ft_m_bt, backtest_context, val_months,
+                                                    recursive_step, point_channel)
+            bt_point = to_raw(bt_point_model, candidate_log)
+            mape_combo = mean_absolute_percentage_error(backtest_actual, bt_point) * 100
+            print(f'  {label}: MAPE={mape_combo:.2f}%', flush=True)
+
+            if mape_combo < best_mape:
+                best_mape = mape_combo
+                ft_ctx = candidate_ctx
+                log_transform = candidate_log
+            del ft_m_bt
+
+        print(f'  Mejor combinación para "{grupo}": FT_CTX={ft_ctx}, LOG_TRANSFORM={log_transform} '
+              f'(MAPE {best_mape:.2f}%)', flush=True)
+
+        # Fine-tuning FINAL sobre el 100% del histórico de este grupo
+        all_values_model = np.log(all_values) if log_transform else all_values
+        ft_windows_final = build_ft_windows(all_values_model, ft_ctx, ft_hor, ft_step)
+        ft_model_final = make_ft_module(fixed_layers, base_module)
+        ft_model_final = run_ft_training(
+            ft_model_final, fixed_lr, ft_epochs, ft_windows_final, point_channel,
+            progress_range=(grupo_hi - 3, grupo_hi), progress_label=f'{grupo}: entrenamiento final',
+        )
+
+        forecast_point_model, forecast_quant_model = recursive_forecast(
+            model, ft_model_final, all_values_model, horizonte_meses, recursive_step, point_channel
+        )
+        forecast_point = to_raw(forecast_point_model, log_transform)
+        forecast_quant = to_raw(forecast_quant_model, log_transform)
+
+        historico = [
+            {'fecha': row['Fecha'].strftime('%Y-%m'), 'valor': round(float(row[grupo])) if pd.notna(row[grupo]) else None}
+            for _, row in df.iterrows()
+        ]
+        pronostico = [
+            {'fecha': d.strftime('%Y-%m'), 'valor': round(float(v))}
+            for d, v in zip(forecast_dates, forecast_point)
+        ]
+        intervalo_confianza = {
+            'superior': [{'fecha': d.strftime('%Y-%m'), 'valor': round(float(v))}
+                         for d, v in zip(forecast_dates, forecast_quant[:, q_high])],
+            'inferior': [{'fecha': d.strftime('%Y-%m'), 'valor': round(float(v))}
+                         for d, v in zip(forecast_dates, forecast_quant[:, q_low])],
+        }
+
+        series_out[grupo] = {
+            'historico': historico, 'pronostico': pronostico, 'intervalo_confianza': intervalo_confianza,
+        }
+        mapes.append(best_mape)
+        del ft_model_final
+
+    progress(96, 'Construyendo resultado...')
+    result = {
+        'metrica':     metrica,
+        'modo':        'atributo',
+        'modelo':      'TimesFM',
+        'atributo':    atributo,
+        'anio_inicio': int(df['Fecha'].iloc[0].year),
+        'series':      series_out,
+        'mape':        round(float(np.mean(mapes)), 2) if mapes else None,
+    }
+    return result

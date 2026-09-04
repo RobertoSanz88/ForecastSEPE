@@ -171,3 +171,50 @@ TIMESFM_DE_ESTATAL_PARAMS = {
     'recursive_step': 12,
     'val_months':     36,
 }
+
+# ── TimesFM 2.5 (recursivo) — ATRIBUTO ────────────────────────────────────────
+# notebooks/forecast_ABCDE_atributo_TimesFM.ipynb -- a diferencia del estatal,
+# aquí NO se fija FT_CTX por métrica: cada grupo de un desglose (provincia,
+# sector, régimen...) puede tener una escala/estacionalidad muy distinta al
+# agregado nacional -- confirmado con "Industria" (Parados por sector): con
+# log=False salía ~19-20% de MAPE, con log=True ~11%, mientras que Agricultura
+# (mismo CSV) necesitaba justo lo contrario. Por eso LOG_TRANSFORM entra en el
+# grid junto a FT_CTX (2x2=4 combinaciones por grupo) en vez de decidirse por
+# el nombre de la métrica. lr y point_channel se quedan fijos por regla ABC/DE
+# -- se probó que solos no ayudan y combinados no generalizan de forma fiable.
+#
+# VAL_MONTHS=36 (no 12): con 12 el backtest solo ejercita un paso recursivo y
+# es ciego a la deriva que solo aparece en pasos posteriores del pronóstico
+# final ("efecto bola de nieve") -- confirmado también con "Industria": con
+# VAL_MONTHS=12 el backtest daba buen MAPE pero el pronóstico final divergía.
+# El MAPE reportado en atributo pasa a ser de los 3 años, no solo del primer
+# año, como consecuencia de este cambio.
+
+# Parados o Afiliados por atributo — forecast_ABCDE_atributo_TimesFM.ipynb
+TIMESFM_ABC_ATRIBUTO_PARAMS = {
+    'lr':               5e-6,
+    'layers':           4,
+    'point_channel':    5,           # mediana
+    'ft_ctx_grid':      [24, 36],
+    'log_transform_grid': [False, True],
+    'ft_hor':           12,
+    'ft_step':          3,
+    'ft_epochs':        15,
+    'recursive_step':   12,
+    'val_months':       36,
+}
+
+# Contratos por atributo — forecast_ABCDE_atributo_TimesFM.ipynb
+TIMESFM_DE_ATRIBUTO_PARAMS = {
+    'lr':               5e-5,
+    'layers':           4,
+    'point_channel':    5,
+    'point_channel_overrides': {'Contratos': 0},  # ver nota en TIMESFM_DE_ESTATAL_PARAMS
+    'ft_ctx_grid':      [24, 36],
+    'log_transform_grid': [False, True],
+    'ft_hor':           12,
+    'ft_step':          3,
+    'ft_epochs':        15,
+    'recursive_step':   12,
+    'val_months':       36,
+}
