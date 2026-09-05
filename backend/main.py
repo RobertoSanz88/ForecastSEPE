@@ -684,6 +684,23 @@ async def export_excel(req: ExportRequest):
             for fecha in sorted(date_map.keys()):
                 ws.append([fecha] + [date_map[fecha].get(s) for s in snames])
 
+        # Hoja de hiperparametros por grupo (si el modelo los expone, ej. TimesFM)
+        _MODEL_DISPLAY_HP = {'NP': 'NeuralProphet', 'LSTM': 'LSTM', 'XGBoost': 'XGBoost', 'TimesFM': 'TimesFM'}
+        hp_rows = []
+        for serie in req.series:
+            if not serie.series:
+                continue
+            for grupo, sdata in serie.series.items():
+                hp = sdata.get("hiperparametros")
+                if hp:
+                    hp_str = ", ".join(f"{k}={v}" for k, v in hp.items())
+                    hp_rows.append((_MODEL_DISPLAY_HP.get(serie.modelo, serie.modelo), grupo, hp_str))
+        if hp_rows:
+            ws_hp = wb.create_sheet("Hiperparámetros")
+            ws_hp.append(["Modelo", "Grupo", "Hiperparámetros"])
+            for modelo, grupo, hp_str in hp_rows:
+                ws_hp.append([modelo, grupo, hp_str])
+
     else:
         # Historico sheet
         if req.historico:
