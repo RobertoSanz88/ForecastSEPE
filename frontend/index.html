@@ -1292,6 +1292,7 @@ btnExcel.addEventListener('click', async () => {
           pronostico:  s.pronostico || [],
           ic_superior: s.intervalo_confianza?.superior || null,
           ic_inferior: s.intervalo_confianza?.inferior || null,
+          hiperparametros: s.hiperparametros || null,
         };
       });
       return { modelo, series: seriesData, mape: result.mape ?? null };

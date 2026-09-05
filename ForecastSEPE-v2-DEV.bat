@@ -149,6 +149,4 @@ echo  Si da 504 usando la IP de LAN, usa http://127.0.0.1:8766 (Netskope
 echo  intercepta el trafico por IP en esta red).
 echo  Para detener: cierra la ventana del servidor.
 echo.
-echo  Pulsa una tecla para cerrar esta ventana (el servidor sigue activo
-echo  en su propia ventana negra aunque cierres esta)...
-pause >nul
+exit /b 0

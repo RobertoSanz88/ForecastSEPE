@@ -564,6 +564,11 @@ def run_timesfm_atributo_forecast(metrica: str, atributo: str, df: 'pd.DataFrame
 
         series_out[grupo] = {
             'historico': historico, 'pronostico': pronostico, 'intervalo_confianza': intervalo_confianza,
+            'hiperparametros': {
+                'ft_ctx': ft_ctx, 'ft_hor': ft_hor, 'layers': fixed_layers, 'lr': fixed_lr,
+                'log_transform': log_transform, 'point_channel': point_channel,
+                'recursive_step': recursive_step,
+            },
         }
         mapes.append(best_mape)
         del ft_model_final
