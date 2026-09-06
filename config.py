@@ -59,17 +59,18 @@ NP_ABC_ESTATAL_PARAMS = {
         'n_changepoints'   : [10, 20, 50],
         'seasonality_mode' : ['additive', 'multiplicative'],
     },
-    # Validado empíricamente sobre 3 cortes temporales (abr-2026, dic-2025,
-    # dic-2024): growth y seasonality_mode coinciden en Parados y Afiliados;
-    # n_changepoints es distinto entre métricas pero estable dentro de cada
-    # una (20 en Parados, 10 en Afiliados en los 2 cortes más recientes --
-    # el corte más antiguo de Afiliados discrepaba y se descartó por tener
-    # menos datos que producción). Demandantes no se ha probado -- fallback
-    # al grid completo.
-    'grid_overrides': {
-        'Parados':   {'growth': ['discontinuous'], 'n_changepoints': [20], 'seasonality_mode': ['additive']},
-        'Afiliados': {'growth': ['discontinuous'], 'n_changepoints': [10], 'seasonality_mode': ['additive']},
-    },
+    # REVERTIDO 2026-09-06: se detectó que el entrenamiento recursivo de NP
+    # (n_lags>0) es sensible al estado aleatorio heredado -- la combinación
+    # ganadora en el grid completo (discontinuous/20/additive para Parados)
+    # da MAPE 13.57% ahí, pero aislada como único combo (re-sembrando la
+    # semilla antes de cada fit) da MAPE >100.000% -- el fold que cruza el
+    # COVID (train 2012-2019/val 2020-2022) diverge en la predicción
+    # recursiva. El "ganador" del grid no es una propiedad estable de esos
+    # hiperparámetros, sino suerte del estado aleatorio en esa posición del
+    # grid. NO fijar hiperparámetros de NP estatal ABC hasta rediseñar la
+    # selección (ej. evaluar cada combinación con varias semillas). Ver
+    # [[bug-np-recursive-seed-instability]] en memoria.
+    'grid_overrides': {},
     'nlags': 2,
     'cv': {
         'train_months': 96,
