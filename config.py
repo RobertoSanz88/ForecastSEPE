@@ -59,18 +59,22 @@ NP_ABC_ESTATAL_PARAMS = {
         'n_changepoints'   : [10, 20, 50],
         'seasonality_mode' : ['additive', 'multiplicative'],
     },
-    # REVERTIDO 2026-09-06: se detectó que el entrenamiento recursivo de NP
-    # (n_lags>0) es sensible al estado aleatorio heredado -- la combinación
-    # ganadora en el grid completo (discontinuous/20/additive para Parados)
-    # da MAPE 13.57% ahí, pero aislada como único combo (re-sembrando la
-    # semilla antes de cada fit) da MAPE >100.000% -- el fold que cruza el
-    # COVID (train 2012-2019/val 2020-2022) diverge en la predicción
-    # recursiva. El "ganador" del grid no es una propiedad estable de esos
-    # hiperparámetros, sino suerte del estado aleatorio en esa posición del
-    # grid. NO fijar hiperparámetros de NP estatal ABC hasta rediseñar la
-    # selección (ej. evaluar cada combinación con varias semillas). Ver
-    # [[bug-np-recursive-seed-instability]] en memoria.
-    'grid_overrides': {},
+    # Re-validado 2026-09-06 con prueba multi-semilla (3 semillas x 12
+    # combinaciones x 4 folds, re-sembrando antes de cada fit) tras detectar
+    # que el grid original (sin re-sembrar) daba resultados dependientes de
+    # la posición de entrenamiento, no de los hiperparámetros reales -- ver
+    # [[bug-np-recursive-seed-instability]]. Para Parados, cualquier
+    # combinación con growth=discontinuous + n_changepoints=20 explota en
+    # el fold que cruza el COVID (peor caso >40.000% MAPE) en 2 de las 3
+    # semillas -- inestable de verdad, no mala suerte puntual. growth=linear
+    # es sistemáticamente el más robusto (std 2-7 puntos, sin explosiones,
+    # mediana 19-22% en las 6 combinaciones linear). Se fija
+    # linear/10/additive: mejor peor-caso (21.69%) y menor varianza (std
+    # 2.02) de las 12 combinaciones. Afiliados y Contratos pendientes de la
+    # misma prueba antes de fijar nada ahí.
+    'grid_overrides': {
+        'Parados': {'growth': ['linear'], 'n_changepoints': [10], 'seasonality_mode': ['additive']},
+    },
     'nlags': 2,
     'cv': {
         'train_months': 96,
