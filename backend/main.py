@@ -450,12 +450,25 @@ async def _stream_forecast(cmd: list):
 
     yield _sse({"type": "started", "job_id": job_id})
 
+    # Entre PROGRESS del script puede haber varios minutos de silencio (p.ej. NP/LSTM
+    # entrenando una combinación del grid search, que solo emite PROGRESS al empezar
+    # cada combinación, no por fold). Si no fluyen bytes, algunos proxies/antivirus con
+    # inspección SSL cortan la conexión SSE por inactividad. Este keepalive cada 15 s
+    # mantiene la conexión viva independientemente de lo que tarde el subproceso.
+    KEEPALIVE_S  = 15.0
+    TOTAL_LIMIT_S = 14400.0
+    elapsed_total = 0.0
     while True:
         try:
-            event = await asyncio.wait_for(q.get(), timeout=14400.0)
+            event = await asyncio.wait_for(q.get(), timeout=KEEPALIVE_S)
         except asyncio.TimeoutError:
-            yield _sse({"type": "error", "message": "Timeout: el script tardó demasiado."})
-            break
+            elapsed_total += KEEPALIVE_S
+            if elapsed_total >= TOTAL_LIMIT_S:
+                yield _sse({"type": "error", "message": "Timeout: el script tardó demasiado."})
+                break
+            yield _sse({"type": "keepalive"})
+            continue
+        elapsed_total = 0.0
         yield _sse(event)
         if event["type"] in ("done", "error"):
             break
