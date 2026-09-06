@@ -185,6 +185,10 @@ def clean_csv_inplace(csv_path: Path) -> None:
 
     cleaned_rows = [headers]
     for row in rows[1:]:
+        # Fila completamente vacia (ej. filas sobrantes al exportar/editar desde Excel,
+        # que dejan ';;;;' o una linea en blanco) -- se descarta, no aporta ningun dato.
+        if not any(cell.strip() for cell in row):
+            continue
         cleaned = []
         for i, cell in enumerate(row):
             stripped = cell.strip()
