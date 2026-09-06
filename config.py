@@ -99,16 +99,16 @@ NP_DE_ESTATAL_PARAMS = {
         'n_changepoints'   : [10, 20, 50],
         'seasonality_mode' : ['additive', 'multiplicative'],
     },
-    # Validado empíricamente sobre 3 cortes temporales (abr-2026, dic-2025,
-    # dic-2024) para Contratos: discontinuous/multiplicative estables en los
-    # tres; n_changepoints=50 en los 2 cortes más recientes (el más antiguo,
-    # con menos datos que producción, daba 10 -- MAPE 48% vs ~30%, se
-    # verificó que SÍ importa, y se descartó por ser el corte menos
-    # representativo). P. Contratadas no se ha probado -- fallback al grid
-    # completo.
-    'grid_overrides': {
-        'Contratos': {'growth': ['discontinuous'], 'n_changepoints': [50], 'seasonality_mode': ['multiplicative']},
-    },
+    # REVERTIDO 2026-09-06: igual que en NP_ABC_ESTATAL_PARAMS, el "ganador"
+    # discontinuous/50/multiplicative solo salía mejor por la posición en el
+    # grid sin re-sembrar semilla entre combinaciones. Con set_random_seed(11)
+    # antes de cada fit (fix ya aplicado en forecast_DE_estatal_NP.py), el
+    # grid completo sobre el mismo CSV (Contratos 2012-2024) da un ganador
+    # distinto: linear/10/multiplicative (MAPE 33.54%) bate a
+    # discontinuous/50/multiplicative (MAPE 42.49%). Ver
+    # [[bug-np-recursive-seed-instability]]. Pendiente re-validar los 3
+    # cortes con el método correcto antes de volver a fijar nada aquí.
+    'grid_overrides': {},
     'nlags': 0,
     'cv': {
         'train_months': 96,
