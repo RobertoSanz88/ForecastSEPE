@@ -73,7 +73,7 @@ def main():
         # learning_rate: tamaño del paso en el boosting (más bajo = más robusto, más lento)
         # n_estimators: número de árboles en el ensemble
         # colsample_bytree: fracción de features usadas por árbol (regularización implícita)
-        param_grid = XGBOOST_ESTATAL_PARAMS['grid']
+        param_grid = XGBOOST_ESTATAL_PARAMS['grid_overrides'].get(metrica, XGBOOST_ESTATAL_PARAMS['grid'])
         grid = list(ParameterGrid(param_grid))
         print(f'Total de combinaciones a evaluar: {len(grid)}')
 

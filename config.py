@@ -22,6 +22,16 @@ LSTM_ESTATAL_PARAMS = {
         'units' : [64, 128, 256],
         'epochs': [100, 200, 300],
     },
+    # Validado empíricamente sobre 3 cortes temporales (abr-2026, dic-2025,
+    # dic-2024): los tres hiperparámetros salen idénticos en Parados y
+    # Afiliados (la única discrepancia, units=256 en el corte más reciente,
+    # resultó ser ruido -- MAPE prácticamente igual a units=64 comparado
+    # directamente). Se salta el grid search para estas dos métricas.
+    # Demandantes no se ha probado -- usa el grid completo (fallback).
+    'grid_overrides': {
+        'Parados':   {'lags': [2], 'units': [64], 'epochs': [100]},
+        'Afiliados': {'lags': [2], 'units': [64], 'epochs': [100]},
+    },
     'cv': {
         'train_months': 96,
         'val_months'  : 36,
@@ -49,6 +59,17 @@ NP_ABC_ESTATAL_PARAMS = {
         'n_changepoints'   : [10, 20, 50],
         'seasonality_mode' : ['additive', 'multiplicative'],
     },
+    # Validado empíricamente sobre 3 cortes temporales (abr-2026, dic-2025,
+    # dic-2024): growth y seasonality_mode coinciden en Parados y Afiliados;
+    # n_changepoints es distinto entre métricas pero estable dentro de cada
+    # una (20 en Parados, 10 en Afiliados en los 2 cortes más recientes --
+    # el corte más antiguo de Afiliados discrepaba y se descartó por tener
+    # menos datos que producción). Demandantes no se ha probado -- fallback
+    # al grid completo.
+    'grid_overrides': {
+        'Parados':   {'growth': ['discontinuous'], 'n_changepoints': [20], 'seasonality_mode': ['additive']},
+        'Afiliados': {'growth': ['discontinuous'], 'n_changepoints': [10], 'seasonality_mode': ['additive']},
+    },
     'nlags': 2,
     'cv': {
         'train_months': 96,
@@ -73,11 +94,20 @@ NP_DE_ATRIBUTO_PARAMS = {
 # Contratos mensual estatal 2027-2029 NP_v2.ipynb
 NP_DE_ESTATAL_PARAMS = {
     'grid': {
-        'growth'           : ['linear'], #, 'discontinuous'],
-        'n_changepoints'   : [10], #, 20, 50],
-        'seasonality_mode' : ['additive'], #, 'multiplicative'],
-
-    }, 
+        'growth'           : ['linear', 'discontinuous'],
+        'n_changepoints'   : [10, 20, 50],
+        'seasonality_mode' : ['additive', 'multiplicative'],
+    },
+    # Validado empíricamente sobre 3 cortes temporales (abr-2026, dic-2025,
+    # dic-2024) para Contratos: discontinuous/multiplicative estables en los
+    # tres; n_changepoints=50 en los 2 cortes más recientes (el más antiguo,
+    # con menos datos que producción, daba 10 -- MAPE 48% vs ~30%, se
+    # verificó que SÍ importa, y se descartó por ser el corte menos
+    # representativo). P. Contratadas no se ha probado -- fallback al grid
+    # completo.
+    'grid_overrides': {
+        'Contratos': {'growth': ['discontinuous'], 'n_changepoints': [50], 'seasonality_mode': ['multiplicative']},
+    },
     'nlags': 0,
     'cv': {
         'train_months': 96,
@@ -111,6 +141,13 @@ XGBOOST_ESTATAL_PARAMS = {
         'learning_rate'   : [0.01, 0.1, 0.5],
         'n_estimators'    : [500, 1000, 2000],
         'colsample_bytree': [0.4, 0.7, 1],
+    },
+    # Validado empíricamente sobre 3 cortes temporales (abr-2026, dic-2025,
+    # dic-2024): los cuatro hiperparámetros salen idénticos para Contratos
+    # en los tres cortes. P. Contratadas no se ha probado -- fallback al
+    # grid completo.
+    'grid_overrides': {
+        'Contratos': {'max_depth': [5], 'learning_rate': [0.01], 'n_estimators': [500], 'colsample_bytree': [0.4]},
     },
     'reg': {
         'reg_lambda': 0,
