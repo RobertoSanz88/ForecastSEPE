@@ -74,7 +74,7 @@ def main():
         # n_changepoints: número de puntos de cambio de tendencia (más = más flexible)
         # seasonality_mode: 'additive' cuando la amplitud estacional es constante;
         #   'multiplicative' cuando crece o decrece proporcionalmente al nivel de la serie
-        param_grid = NP_DE_ESTATAL_PARAMS['grid']
+        param_grid = NP_DE_ESTATAL_PARAMS['grid_overrides'].get(metrica, NP_DE_ESTATAL_PARAMS['grid'])
         grid = list(ParameterGrid(param_grid))
         print(f'Total de combinaciones a evaluar: {len(grid)}')
 
