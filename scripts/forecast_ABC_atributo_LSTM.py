@@ -246,6 +246,7 @@ def main():
                 'historico':  historico,
                 'pronostico': pronostico,
                 'intervalo_confianza': None,
+                'hiperparametros': best_params[grupo],
             }
 
         result = {
