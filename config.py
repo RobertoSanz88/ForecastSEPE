@@ -118,25 +118,16 @@ NP_DE_ESTATAL_PARAMS = {
         'n_changepoints'   : [10, 20, 50],
         'seasonality_mode' : ['additive', 'multiplicative'],
     },
-    # Fijado 2026-09-07 con prueba multi-semilla (3 semillas x 12
-    # combinaciones x 4 folds, re-sembrando antes de cada fit) + 3 cortes
-    # temporales (dic-2024, dic-2025, abr-2026) ejecutados en la app. Por
-    # MAPE de CV puro, linear/10/multiplicative gana con claridad (mediana
-    # 33.15%, std 0.93) y discontinuous/10/multiplicative queda 3º (mediana
-    # 37.19%, std 2.91) -- pero linear/10/multiplicative dio en el corte
-    # dic-2024 una tendencia exagerada hacia abajo y poca amplitud
-    # estacional (mala extrapolación visual, aunque el MAPE de validación
-    # sea bueno -- mismo patrón que en Afiliados, ver
-    # [[bug-np-recursive-seed-instability]]). discontinuous/10/multiplicative
-    # dio buena forma y tendencia en 2 de los 3 cortes (dic-2025 y abr-2026).
-    # Se prioriza la evidencia visual sobre el MAPE de CV. A diferencia de
-    # Parados/Afiliados, growth=discontinuous no muestra aquí explosiones de
-    # inestabilidad (Contratos es familia DE, predicción directa sin
-    # recursividad) -- std 2.91 es razonable, no hay peor-caso disparado.
-    # n_changepoints=10 domina con claridad frente a 20/50 en las 12
-    # combinaciones (33-38% vs 43-60%).
+    # Fijado 2026-09-07 (segunda revisión). La prueba multi-semilla (3
+    # semillas x 12 combinaciones x 4 folds, re-sembrando antes de cada fit)
+    # daba a linear/10/multiplicative el mejor MAPE de CV (mediana 33.15%,
+    # std 0.93), pero se había fijado discontinuous/10/multiplicative en su
+    # lugar por mejor forma/tendencia visual en 2 de 3 cortes. Al revisar el
+    # pronóstico real en la app con discontinuous/10/multiplicative el
+    # resultado no convenció, así que se revierte a linear/10/multiplicative
+    # (el ganador por MAPE de CV).
     'grid_overrides': {
-        'Contratos': {'growth': ['discontinuous'], 'n_changepoints': [10], 'seasonality_mode': ['multiplicative']},
+        'Contratos': {'growth': ['linear'], 'n_changepoints': [10], 'seasonality_mode': ['multiplicative']},
     },
     'nlags': 0,
     'cv': {
