@@ -118,16 +118,14 @@ NP_DE_ESTATAL_PARAMS = {
         'n_changepoints'   : [10, 20, 50],
         'seasonality_mode' : ['additive', 'multiplicative'],
     },
-    # Fijado 2026-09-07 (segunda revisión). La prueba multi-semilla (3
-    # semillas x 12 combinaciones x 4 folds, re-sembrando antes de cada fit)
-    # daba a linear/10/multiplicative el mejor MAPE de CV (mediana 33.15%,
-    # std 0.93), pero se había fijado discontinuous/10/multiplicative en su
-    # lugar por mejor forma/tendencia visual en 2 de 3 cortes. Al revisar el
-    # pronóstico real en la app con discontinuous/10/multiplicative el
-    # resultado no convenció, así que se revierte a linear/10/multiplicative
-    # (el ganador por MAPE de CV).
+    # Fijado 2026-09-07 (tercera revisión). Tras revertir brevemente a
+    # linear/10/multiplicative (ganador por MAPE de CV en la prueba
+    # multi-semilla), se detectó que esa comprobación visual en la app se
+    # había hecho con datos solo hasta 2024. Se vuelve a
+    # discontinuous/10/multiplicative (mejor forma/tendencia visual en 2 de
+    # 3 cortes) hasta repetir la comprobación con datos actualizados.
     'grid_overrides': {
-        'Contratos': {'growth': ['linear'], 'n_changepoints': [10], 'seasonality_mode': ['multiplicative']},
+        'Contratos': {'growth': ['discontinuous'], 'n_changepoints': [10], 'seasonality_mode': ['multiplicative']},
     },
     'nlags': 0,
     'cv': {
