@@ -118,16 +118,26 @@ NP_DE_ESTATAL_PARAMS = {
         'n_changepoints'   : [10, 20, 50],
         'seasonality_mode' : ['additive', 'multiplicative'],
     },
-    # REVERTIDO 2026-09-06: igual que en NP_ABC_ESTATAL_PARAMS, el "ganador"
-    # discontinuous/50/multiplicative solo salía mejor por la posición en el
-    # grid sin re-sembrar semilla entre combinaciones. Con set_random_seed(11)
-    # antes de cada fit (fix ya aplicado en forecast_DE_estatal_NP.py), el
-    # grid completo sobre el mismo CSV (Contratos 2012-2024) da un ganador
-    # distinto: linear/10/multiplicative (MAPE 33.54%) bate a
-    # discontinuous/50/multiplicative (MAPE 42.49%). Ver
-    # [[bug-np-recursive-seed-instability]]. Pendiente re-validar los 3
-    # cortes con el método correcto antes de volver a fijar nada aquí.
-    'grid_overrides': {},
+    # Fijado 2026-09-07 con prueba multi-semilla (3 semillas x 12
+    # combinaciones x 4 folds, re-sembrando antes de cada fit) + 3 cortes
+    # temporales (dic-2024, dic-2025, abr-2026) ejecutados en la app. Por
+    # MAPE de CV puro, linear/10/multiplicative gana con claridad (mediana
+    # 33.15%, std 0.93) y discontinuous/10/multiplicative queda 3º (mediana
+    # 37.19%, std 2.91) -- pero linear/10/multiplicative dio en el corte
+    # dic-2024 una tendencia exagerada hacia abajo y poca amplitud
+    # estacional (mala extrapolación visual, aunque el MAPE de validación
+    # sea bueno -- mismo patrón que en Afiliados, ver
+    # [[bug-np-recursive-seed-instability]]). discontinuous/10/multiplicative
+    # dio buena forma y tendencia en 2 de los 3 cortes (dic-2025 y abr-2026).
+    # Se prioriza la evidencia visual sobre el MAPE de CV. A diferencia de
+    # Parados/Afiliados, growth=discontinuous no muestra aquí explosiones de
+    # inestabilidad (Contratos es familia DE, predicción directa sin
+    # recursividad) -- std 2.91 es razonable, no hay peor-caso disparado.
+    # n_changepoints=10 domina con claridad frente a 20/50 en las 12
+    # combinaciones (33-38% vs 43-60%).
+    'grid_overrides': {
+        'Contratos': {'growth': ['discontinuous'], 'n_changepoints': [10], 'seasonality_mode': ['multiplicative']},
+    },
     'nlags': 0,
     'cv': {
         'train_months': 96,
