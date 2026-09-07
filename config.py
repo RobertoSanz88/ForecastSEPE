@@ -70,10 +70,25 @@ NP_ABC_ESTATAL_PARAMS = {
     # es sistemáticamente el más robusto (std 2-7 puntos, sin explosiones,
     # mediana 19-22% en las 6 combinaciones linear). Se fija
     # linear/10/additive: mejor peor-caso (21.69%) y menor varianza (std
-    # 2.02) de las 12 combinaciones. Afiliados y Contratos pendientes de la
-    # misma prueba antes de fijar nada ahí.
+    # 2.02) de las 12 combinaciones. Contratos pendiente de la misma prueba
+    # antes de fijar nada ahí.
+    #
+    # Afiliados fijado 2026-09-07: el grid search de un solo corte/semilla no
+    # bastaba -- picoteaba distinto ganador según el corte (dic-2024 dio
+    # linear/10/additive con tendencia decreciente, claramente mal frente al
+    # histórico real en subida). Diagnóstico: con n_changepoints=10 el modelo
+    # no tiene changepoints cerca del final del histórico y extrapola con una
+    # pendiente más vieja y suave que el crecimiento reciente real
+    # (~524k/año) -- ver [[bug-np-recursive-seed-instability]] para el
+    # patrón general de no fiarse de un solo grid search sin repetir. Con
+    # linear/50/additive la tendencia es positiva y consistente en 3
+    # semillas (+387k a +538k/año) y en 2 de los 3 cortes temporales
+    # probados por el usuario (dic-2025 y el corte más reciente, MAPE ~3%
+    # ambos), con MAPE de validación prácticamente igual al resto de
+    # combinaciones (mediana 3.27% en la prueba multi-semilla).
     'grid_overrides': {
-        'Parados': {'growth': ['linear'], 'n_changepoints': [10], 'seasonality_mode': ['additive']},
+        'Parados':   {'growth': ['linear'], 'n_changepoints': [10], 'seasonality_mode': ['additive']},
+        'Afiliados': {'growth': ['linear'], 'n_changepoints': [50], 'seasonality_mode': ['additive']},
     },
     'nlags': 2,
     'cv': {
