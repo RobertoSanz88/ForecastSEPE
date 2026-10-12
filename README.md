@@ -54,7 +54,7 @@ python -m uvicorn backend.main:app --host 0.0.0.0 --port 8001
 {Métrica} desde {AñoInicio} {estatal|por {Atributo}}.csv
 ```
 
-El horizonte de pronóstico no forma parte del nombre — se calcula automáticamente a partir de la fecha actual y del último registro del CSV.
+El horizonte de pronóstico no forma parte del nombre del fichero. El inicio se calcula automáticamente (el mes siguiente al último registro del CSV); el final lo eliges tú en la propia interfaz, con un botón que alterna entre dos horizontes (año actual + 2 o + 3 — por defecto, + 3).
 
 Ejemplos válidos:
 ```
