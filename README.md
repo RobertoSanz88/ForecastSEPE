@@ -4,43 +4,40 @@ Aplicación web para el **Observatorio de las Ocupaciones del SEPE** que permite
 
 ## Requisitos
 
-- Python 3.10 o superior
-- Conexión de red (Plotly.js se carga vía CDN)
+- Windows 10/11
+- Conexión de red (para la instalación inicial y para que Plotly.js se cargue vía CDN)
+- Para usar el modelo TimesFM: se recomiendan al menos 8GB de RAM. Con 4GB funciona, pero muy lento (el *fine-tuning* del modelo compite por memoria con el resto de programas abiertos)
 
 ## Instalación
 
-```bash
-# Clonar el repositorio
-git clone <url-del-repo>
-cd ForecastSEPE
+Descarga `INSTALAR_ForecastSEPE.bat` y ejecútalo **desde fuera de la carpeta del proyecto** (por ejemplo, desde Descargas, sin moverlo a ningún otro sitio).
 
-# Crear entorno virtual (recomendado)
-python -m venv .venv
-.venv\Scripts\activate          # Windows
+El instalador se encarga de todo: Miniconda, Git, el propio repositorio, el entorno `NP-LSTM-XGBoost` y el entorno `timesfm_env` con el checkpoint de TimesFM 2.5 (~925MB). Si ya tienes algo instalado, lo detecta y lo salta.
 
-# Instalar dependencias
-pip install -r requirements.txt --trusted-host pypi.org --trusted-host files.pythonhosted.org
-```
+Para actualizar a una versión más reciente, ejecuta el mismo instalador de nuevo — sin necesidad de mover ni volver a descargar nada.
 
 ## Lanzar la aplicación
 
-**Opción A — Script bat (Windows):**
+**Opción A — Acceso directo (recomendado):**
+Doble clic en el acceso directo **"ForecastSEPE"** que el instalador crea en el Escritorio.
+
+**Opción B — Script bat:**
 ```
 ForecastSEPE.bat
 ```
-El script activa el entorno virtual si existe, abre el navegador automáticamente y lanza el servidor.
+(dentro de la carpeta del proyecto). Detecta automáticamente los entornos instalados, abre el navegador y lanza el servidor.
 
-**Opción B — Manual:**
+**Opción C — Manual:**
 ```bash
-python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
+python -m uvicorn backend.main:app --host 0.0.0.0 --port 8001
 ```
-Luego abre http://localhost:8000 en el navegador.
+(usando el Python del entorno `NP-LSTM-XGBoost`). Luego abre http://localhost:8001 en el navegador.
 
 ## Uso
 
 ### Ruta A — CSV primero
 1. Arrastra tu CSV al área de carga (o haz clic para seleccionar)
-2. El sistema detecta automáticamente métrica, ámbito y horizonte del nombre del fichero
+2. El sistema detecta automáticamente métrica y ámbito del nombre del fichero
 3. Selecciona uno o más modelos
 4. Pulsa **Ejecutar Pronóstico**
 
@@ -54,14 +51,16 @@ Luego abre http://localhost:8000 en el navegador.
 ### Formato del nombre del CSV
 
 ```
-{Métrica} desde {AñoInicio} {estatal|por {Atributo}} {AñoPronostico}-{AñoFinal}.csv
+{Métrica} desde {AñoInicio} {estatal|por {Atributo}}.csv
 ```
+
+El horizonte de pronóstico no forma parte del nombre — se calcula automáticamente a partir de la fecha actual y del último registro del CSV.
 
 Ejemplos válidos:
 ```
-Parados desde 2010 estatal 2025-2028.csv
-Afiliados desde 2015 por CCAA 2025-2028.csv
-Contratos desde 2012 por provincias 2025-2028.csv
+Parados desde 2010 estatal.csv
+Afiliados desde 2015 por CCAA.csv
+Contratos desde 2012 por provincias.csv
 ```
 
 ### Disponibilidad de modelos
@@ -71,6 +70,7 @@ Contratos desde 2012 por provincias 2025-2028.csv
 | NeuralProphet (NP) | ✓ | ✓ | ✓ | ✓ | ✓ |
 | LSTM | ✓ | ✓ | ✓ | — | — |
 | XGBoost | — | — | — | ✓ | ✓ |
+| TimesFM | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 ### Ensemble
 Si ejecutas dos o más modelos, se activa el botón **⚡ Calcular Ensemble** que promedia los pronósticos.
@@ -84,24 +84,19 @@ El botón **⬇ Exportar Excel** genera un fichero `.xlsx` con dos hojas:
 
 ```
 ForecastSEPE/
-├── scripts/          # Scripts de pronóstico (stubs en fase 1)
-├── backend/          # FastAPI
+├── scripts/                 # Scripts de pronóstico (uno por métrica/ámbito/modelo)
+├── backend/                 # FastAPI
 │   └── main.py
-├── frontend/         # UI
+├── frontend/                 # UI
 │   └── index.html
-├── uploads/          # CSVs temporales (no versionar)
-├── .env
+├── notebooks/                # Desarrollo y validación de TimesFM
+├── certs/                    # Certificado corporativo (Netskope), si hace falta
+├── config.py                  # Hiperparámetros por modelo/métrica
+├── models/                    # Checkpoint de TimesFM 2.5 (se crea al instalar, no versionado)
+├── uploads/                   # CSVs temporales (no versionado)
+├── .env                        # Variables opcionales (p.ej. TIMESFM_PYTHON_EXE manual)
 ├── requirements.txt
 ├── ForecastSEPE.bat
-└── CLAUDE.md         # Documentación de arquitectura para Claude Code
+├── INSTALAR_ForecastSEPE.bat
+└── CLAUDE.md                   # Documentación de arquitectura para Claude Code
 ```
-
-## Fase 2 — Modelos reales
-
-Los scripts actuales en `scripts/` son **stubs** que generan datos sintéticos realistas para desarrollo y pruebas. En la fase 2 se implementarán:
-
-- `forecast_ABC_*.py`: NeuralProphet real + LSTM vía scalecast
-- `forecast_DE_*.py`: NeuralProphet real + XGBoost
-
-El protocolo de comunicación (`PROGRESS:`, `RESULT:`, `ERROR:`) y la estructura de los ficheros no cambiarán, por lo que la arquitectura es directamente reutilizable.
-
