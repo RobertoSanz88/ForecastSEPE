@@ -76,7 +76,7 @@ def main():
         #   (para Afiliados, 12 lags suele ser el óptimo por la fuerte estacionalidad)
         # units: tamaño de la capa LSTM (más unidades = más capacidad, más riesgo de sobreajuste)
         # epochs: iteraciones de entrenamiento sobre los datos
-        lstm_params = LSTM_ESTATAL_PARAMS['grid']
+        lstm_params = LSTM_ESTATAL_PARAMS['grid_overrides'].get(metrica, LSTM_ESTATAL_PARAMS['grid'])
         grid = list(ParameterGrid(lstm_params))
         print(f'Total de combinaciones a evaluar: {len(grid)}')
 
@@ -261,6 +261,7 @@ def main():
             'pronostico':          pronostico,
             'intervalo_confianza': None,
             'mape':                round(float(best_mape), 2),
+            'hiperparametros':     best_params,
         }
 
         print('RESULT:' + json.dumps(result, ensure_ascii=False), flush=True)

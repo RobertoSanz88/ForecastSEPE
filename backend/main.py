@@ -55,7 +55,19 @@ SCRIPT_MAP = {
     ("de",  "estatal",   "XGBoost"): "forecast_DE_estatal_XGBoost.py",
     ("de",  "atributo",  "NP"):      "forecast_DE_atributo_NP.py",
     ("de",  "atributo",  "XGBoost"): "forecast_DE_atributo_XGBoost.py",
+    # TimesFM: un único script por modo sirve a los dos grupos (decide
+    # internamente los hiperparámetros según la métrica -- ver config.py).
+    ("abc", "estatal",   "TimesFM"): "forecast_ABCDE_estatal_TimesFM.py",
+    ("de",  "estatal",   "TimesFM"): "forecast_ABCDE_estatal_TimesFM.py",
+    ("abc", "atributo",  "TimesFM"): "forecast_ABCDE_atributo_TimesFM.py",
+    ("de",  "atributo",  "TimesFM"): "forecast_ABCDE_atributo_TimesFM.py",
 }
+
+# TimesFM corre en su propio entorno conda (paquete `timesfm`, incompatible en
+# principio con el entorno NP-LSTM-XGBoost que usa el resto de la app) -- ruta
+# al python.exe de ese entorno, configurable en .env:
+#   TIMESFM_PYTHON_EXE=C:\ruta\a\envs\timesfm_env\python.exe
+TIMESFM_PYTHON_EXE = os.getenv("TIMESFM_PYTHON_EXE")
 
 # Jobs en curso esperando input del usuario: job_id → {"event": Event, "value": list}
 _active_jobs: dict = {}
@@ -173,6 +185,10 @@ def clean_csv_inplace(csv_path: Path) -> None:
 
     cleaned_rows = [headers]
     for row in rows[1:]:
+        # Fila completamente vacia (ej. filas sobrantes al exportar/editar desde Excel,
+        # que dejan ';;;;' o una linea en blanco) -- se descarta, no aporta ningun dato.
+        if not any(cell.strip() for cell in row):
+            continue
         cleaned = []
         for i, cell in enumerate(row):
             stripped = cell.strip()
@@ -337,8 +353,24 @@ async def _stream_forecast(cmd: list):
 
     def run_script() -> None:
         try:
+            python_exe = cmd[0]
+            if not Path(python_exe).is_file():
+                emit({"type": "error",
+                      "message": f"El intérprete de Python no existe o no es un fichero válido: "
+                                 f"'{python_exe}'. Si es TimesFM, revisa el entorno timesfm_env "
+                                 f"(ejecuta INSTALAR_ForecastSEPE_v2.bat si falta)."})
+                emit({"type": "done"})
+                return
+
             _env = os.environ.copy()
             _env["PYTHONIOENCODING"] = "utf-8"
+            # El subproceso hereda el PATH del entorno conda que lanzo uvicorn
+            # (NP-LSTM-XGBoost). Cuando python_exe es de OTRO entorno (p.ej.
+            # timesfm_env), eso puede meter dos copias distintas del runtime
+            # OpenMP/MKL (via torch/numpy) en el mismo arbol de proceso, lo que
+            # en Windows puede colgar el proceso en silencio (sin excepcion) al
+            # cargar el modelo. Este workaround estandar evita el bloqueo.
+            _env.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
             proc = subprocess.Popen(
                 cmd,
                 stdin=subprocess.PIPE,
@@ -411,8 +443,8 @@ async def _stream_forecast(cmd: list):
                       "message": f"Error en script (código {proc.returncode}): {stderr}"})
             emit({"type": "done"})
         except Exception as e:
-            logger.error("Error en run_script:\n%s", traceback.format_exc())
-            emit({"type": "error", "message": str(e)})
+            logger.error("Error en run_script (cmd=%s):\n%s", cmd, traceback.format_exc())
+            emit({"type": "error", "message": f"{e} (ejecutando: {cmd[0]})"})
             emit({"type": "done"})
         finally:
             _active_jobs.pop(job_id, None)
@@ -422,12 +454,25 @@ async def _stream_forecast(cmd: list):
 
     yield _sse({"type": "started", "job_id": job_id})
 
+    # Entre PROGRESS del script puede haber varios minutos de silencio (p.ej. NP/LSTM
+    # entrenando una combinación del grid search, que solo emite PROGRESS al empezar
+    # cada combinación, no por fold). Si no fluyen bytes, algunos proxies/antivirus con
+    # inspección SSL cortan la conexión SSE por inactividad. Este keepalive cada 15 s
+    # mantiene la conexión viva independientemente de lo que tarde el subproceso.
+    KEEPALIVE_S  = 15.0
+    TOTAL_LIMIT_S = 14400.0
+    elapsed_total = 0.0
     while True:
         try:
-            event = await asyncio.wait_for(q.get(), timeout=14400.0)
+            event = await asyncio.wait_for(q.get(), timeout=KEEPALIVE_S)
         except asyncio.TimeoutError:
-            yield _sse({"type": "error", "message": "Timeout: el script tardó demasiado."})
-            break
+            elapsed_total += KEEPALIVE_S
+            if elapsed_total >= TOTAL_LIMIT_S:
+                yield _sse({"type": "error", "message": "Timeout: el script tardó demasiado."})
+                break
+            yield _sse({"type": "keepalive"})
+            continue
+        elapsed_total = 0.0
         yield _sse(event)
         if event["type"] in ("done", "error"):
             break
@@ -501,6 +546,17 @@ async def run_forecast(
         raise HTTPException(status_code=500,
                             detail=f"Script no encontrado: {script_name}")
 
+    if modelo == "TimesFM":
+        if not TIMESFM_PYTHON_EXE:
+            raise HTTPException(
+                status_code=500,
+                detail="TimesFM requiere la variable TIMESFM_PYTHON_EXE en .env "
+                       "(ruta al python.exe del entorno timesfm_env).",
+            )
+        python_exe = TIMESFM_PYTHON_EXE
+    else:
+        python_exe = sys.executable
+
     csv_file = Path(csv_path)
     if not csv_file.exists():
         raise HTTPException(status_code=400, detail="CSV no encontrado en el servidor")
@@ -518,7 +574,7 @@ async def run_forecast(
         script_metrica = metrica
 
     cmd = [
-        sys.executable, str(script_path.resolve()),
+        python_exe, str(script_path.resolve()),
         "--metrica", script_metrica,
         "--modelo",  modelo,
         "--csv",     str(csv_file.resolve()),
@@ -587,12 +643,13 @@ async def cancel_forecast(req: CancelRequest):
 
 
 class ForecastSerie(BaseModel):
-    modelo:      str
-    pronostico:  Optional[list]  = None   # estatal: [{fecha, valor}]
-    ic_superior: Optional[list]  = None
-    ic_inferior: Optional[list]  = None
-    series:      Optional[dict]  = None   # atributo: {serie: {pronostico, ic_superior, ic_inferior}}
-    mape:        Optional[float] = None
+    modelo:          str
+    pronostico:      Optional[list]  = None   # estatal: [{fecha, valor}]
+    ic_superior:     Optional[list]  = None
+    ic_inferior:     Optional[list]  = None
+    series:          Optional[dict]  = None   # atributo: {serie: {pronostico, ic_superior, ic_inferior}}
+    mape:            Optional[float] = None
+    hiperparametros: Optional[dict]  = None   # solo estatal por ahora (NP/LSTM/XGBoost/TimesFM)
 
 
 class ExportRequest(BaseModel):
@@ -644,6 +701,23 @@ async def export_excel(req: ExportRequest):
             for fecha in sorted(date_map.keys()):
                 ws.append([fecha] + [date_map[fecha].get(s) for s in snames])
 
+        # Hoja de hiperparametros por grupo (si el modelo los expone, ej. TimesFM)
+        _MODEL_DISPLAY_HP = {'NP': 'NeuralProphet', 'LSTM': 'LSTM', 'XGBoost': 'XGBoost', 'TimesFM': 'TimesFM'}
+        hp_rows = []
+        for serie in req.series:
+            if not serie.series:
+                continue
+            for grupo, sdata in serie.series.items():
+                hp = sdata.get("hiperparametros")
+                if hp:
+                    hp_str = ", ".join(f"{k}={v}" for k, v in hp.items())
+                    hp_rows.append((_MODEL_DISPLAY_HP.get(serie.modelo, serie.modelo), grupo, hp_str))
+        if hp_rows:
+            ws_hp = wb.create_sheet("Hiperparámetros")
+            ws_hp.append(["Modelo", "Grupo", "Hiperparámetros"])
+            for modelo, grupo, hp_str in hp_rows:
+                ws_hp.append([modelo, grupo, hp_str])
+
     else:
         # Historico sheet
         if req.historico:
@@ -674,7 +748,7 @@ async def export_excel(req: ExportRequest):
 
     # Hoja MAPE
     _MODEL_DISPLAY = {'NP': 'NeuralProphet', 'LSTM': 'LSTM', 'XGBoost': 'XGBoost', 'Ensemble': 'Ensemble'}
-    mape_rows = [(s.modelo, s.mape) for s in req.series if s.mape is not None]
+    mape_rows = [(s.modelo, s.mape, s.hiperparametros) for s in req.series if s.mape is not None]
     if mape_rows:
         ws_mape = wb.create_sheet("MAPE")
         if req.modo == "atributo" and req.atributo:
@@ -683,9 +757,10 @@ async def export_excel(req: ExportRequest):
             title = "MAPE esperado 3 años"
         ws_mape.append([title])
         ws_mape.append([])
-        ws_mape.append(["Modelo", "MAPE %"])
-        for modelo, mape in mape_rows:
-            ws_mape.append([_MODEL_DISPLAY.get(modelo, modelo), f"{mape:.1f}%"])
+        ws_mape.append(["Modelo", "MAPE %", "Hiperparámetros"])
+        for modelo, mape, hp in mape_rows:
+            hp_str = ", ".join(f"{k}={v}" for k, v in hp.items()) if hp else ""
+            ws_mape.append([_MODEL_DISPLAY.get(modelo, modelo), f"{mape:.1f}%", hp_str])
 
     buf = io.BytesIO()
     wb.save(buf)

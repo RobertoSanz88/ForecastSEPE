@@ -148,34 +148,36 @@ start.bat           # Windows: usa entorno NP-LSTM-XGBoost, abre navegador, lanz
 "C:\Users\sgei044\NP-LSTM-XGBoost\python.exe" -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
 ```
 
-## Versionado y desarrollo paralelo (v1.0 / v2.0-dev)
+## Versionado y desarrollo paralelo (v1.0 → v2.0)
 
-Esta rama (`main`) es la **versión 1.0 estable**, congelada en el tag `v1.0`
-(commit `602f4c9`). Es la que instalan y actualizan los usuarios finales del
-SEPE vía `INSTALAR_ForecastSEPE.bat` (clona/hace `git pull` sobre `main`).
-**No se debe modificar directamente** — cualquier desarrollo nuevo (modelos
-adicionales, cambios de fondo) se hace en la rama `v2.0-dev`.
+**`main` es ahora la versión 2.0** (fusionada desde `v2.0-dev`, tag `v2.0`).
+Sigue siendo la rama de producción: los usuarios finales del SEPE la
+instalan/actualizan vía `INSTALAR_ForecastSEPE.bat` (clona/hace `git pull`
+sobre `main`). El tag `v1.0` (commit `602f4c9`) queda como referencia
+histórica de la versión anterior a esta fusión.
 
-El desarrollo de la 2.0 vive en un **git worktree** separado, no en un clon
-independiente — comparte el mismo `.git` que esta carpeta, así que no hay
-dos historiales que sincronizar a mano:
+El desarrollo sigue viviendo en la rama `v2.0-dev`, en el **git worktree**
+`C:\Users\rsanz\ForecastSEPE-v2` — comparte el mismo `.git` que
+`C:\Users\rsanz\ForecastSEPE` (`main`), así que no hay dos historiales que
+sincronizar a mano. El flujo para cambios futuros sigue siendo el mismo:
+desarrollar en `v2.0-dev`, fusionar a `main` cuando esté listo, etiquetar y
+hacer push.
 
 | Carpeta | Rama | Lanzador | Puerto |
 |---------|------|----------|--------|
-| `C:\Users\rsanz\ForecastSEPE` | `main` (v1.0) | `ForecastSEPE.bat` | 8765 |
+| `C:\Users\rsanz\ForecastSEPE` | `main` | `ForecastSEPE.bat` | 8001 |
 | `C:\Users\rsanz\ForecastSEPE-v2` | `v2.0-dev` | `ForecastSEPE-v2-DEV.bat` | 8766 |
 
 Ambas pueden ejecutarse a la vez sin conflicto (puertos distintos).
 
-**Flujo al terminar la 2.0:** fusionar `v2.0-dev` → `main`, crear tag `v2.0`,
-y hacer push. Solo en ese momento los usuarios finales recibirán la 2.0 en
-su siguiente `git pull`.
-
-**Instalador beta para v2.0-dev:** pendiente de crear (`INSTALAR_ForecastSEPE_v2.bat`).
-Se hará cuando el modelo nuevo esté integrado, ya que probablemente necesite
-un entorno conda propio (versión de Python/librerías distinta a
-`NP-LSTM-XGBoost`) para no interferir con la instalación estable de los
-compañeros.
+**TimesFM y el instalador v2:** `INSTALAR_ForecastSEPE.bat` (producción)
+solo monta el entorno `NP-LSTM-XGBoost` — NP/LSTM/XGBoost para todas las
+métricas siguen funcionando igual tras la fusión. TimesFM necesita su
+propio entorno conda (`timesfm_env`) y la variable `TIMESFM_PYTHON_EXE` en
+`.env`; sin eso, el backend responde con un error controlado explicando
+cómo instalarlo (`INSTALAR_ForecastSEPE_v2.bat`), sin afectar al resto de
+la app. **Pendiente: `INSTALAR_ForecastSEPE_v2.bat` no se ha probado aún en
+una máquina limpia** — hacerlo antes de anunciar TimesFM a los usuarios.
 
 ## Dimensiones de UI
 - **Header:** 72px de alto, logo 44px, título 24px, subtítulo 13px
