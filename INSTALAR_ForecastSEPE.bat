@@ -12,9 +12,11 @@ echo    1. Miniconda (Python)   - si no esta instalado
 echo    2. Git                  - si no esta instalado
 echo    3. Repositorio ForecastSEPE desde GitHub
 echo    4. Entorno NP-LSTM-XGBoost con todas las dependencias
+echo    5. Entorno timesfm_env (modelo TimesFM)
+echo    6. Checkpoint de TimesFM 2.5 (~925MB)
 echo.
 echo  No necesita permisos de administrador.
-echo  Tiempo estimado: 30-45 minutos (primera instalacion).
+echo  Tiempo estimado: 35-55 minutos (primera instalacion).
 echo.
 echo  Pulsa una tecla para comenzar la instalacion...
 pause >nul
@@ -30,13 +32,18 @@ set GIT_URL=https://github.com/git-for-windows/git/releases/download/v2.47.1.win
 set REPO_URL=https://github.com/RobertoSanz88/ForecastSEPE.git
 set ENV_NAME=NP-LSTM-XGBoost
 set PYTHON_VER=3.10
+set TIMESFM_ENV_NAME=timesfm_env
+set TIMESFM_PYTHON_VER=3.11
+set MODEL_DIR=%INSTALL_DIR%\models\timesfm-2.5-200m-pytorch
+set MODEL_REPO_URL=https://huggingface.co/google/timesfm-2.5-200m-pytorch/resolve/main
+set MIN_SAFETENSORS_BYTES=500000000
 
 REM ====================================================================
 REM  PASO 1: MINICONDA
 REM ====================================================================
 echo.
 echo ============================================================
-echo  [1/4] Comprobando Miniconda / Anaconda...
+echo  [1/6] Comprobando Miniconda / Anaconda...
 echo ============================================================
 
 set CONDA_EXE=
@@ -147,7 +154,7 @@ REM ====================================================================
 REM  PASO 2: GIT
 REM ====================================================================
 echo ============================================================
-echo  [2/4] Comprobando Git...
+echo  [2/6] Comprobando Git...
 echo ============================================================
 
 set GIT_EXE=
@@ -205,7 +212,7 @@ REM ====================================================================
 REM  PASO 3: CLONAR REPOSITORIO
 REM ====================================================================
 echo ============================================================
-echo  [3/4] Clonando repositorio ForecastSEPE...
+echo  [3/6] Clonando repositorio ForecastSEPE...
 echo ============================================================
 
 if exist "%INSTALL_DIR%\.git" (
@@ -235,10 +242,10 @@ echo  [OK] Repositorio clonado en %INSTALL_DIR%.
 echo.
 
 REM ====================================================================
-REM  PASO 4: CREAR ENTORNO
+REM  PASO 4: CREAR ENTORNO NP-LSTM-XGBoost
 REM ====================================================================
 echo ============================================================
-echo  [4/4] Creando entorno %ENV_NAME%...
+echo  [4/6] Creando entorno %ENV_NAME%...
 echo ============================================================
 echo.
 echo  Esto incluye NeuralProphet, TensorFlow, XGBoost, scalecast...
@@ -285,6 +292,122 @@ if errorlevel 1 (
 echo.
 
 REM ====================================================================
+REM  PASO 5: ENTORNO timesfm_env (modelo TimesFM)
+REM ====================================================================
+echo ============================================================
+echo  [5/6] Creando entorno %TIMESFM_ENV_NAME% (modelo TimesFM)...
+echo ============================================================
+echo.
+
+call "%CONDA_BASE%\Scripts\activate.bat"
+
+"%CONDA_EXE%" env list 2>nul | findstr /C:"%TIMESFM_ENV_NAME%" >nul 2>&1
+if not errorlevel 1 (
+    echo  [INFO] El entorno %TIMESFM_ENV_NAME% ya existe. Saltando creacion.
+    goto :timesfm_env_ready
+)
+
+echo  Creando entorno %TIMESFM_ENV_NAME% (Python %TIMESFM_PYTHON_VER%)...
+"%CONDA_EXE%" create -n %TIMESFM_ENV_NAME% python=%TIMESFM_PYTHON_VER% -y --insecure
+if errorlevel 1 (
+    echo  [AVISO] No se pudo crear el entorno %TIMESFM_ENV_NAME%.
+    echo          El resto de la app (NP/LSTM/XGBoost) funcionara igual --
+    echo          solo el modelo TimesFM no estara disponible.
+    goto :timesfm_skip
+)
+echo  [OK] Entorno creado.
+echo.
+
+echo  Instalando timesfm y dependencias...
+call "%CONDA_BASE%\Scripts\activate.bat" %TIMESFM_ENV_NAME%
+pip install "timesfm[torch]==3.0.0" pandas numpy scikit-learn --trusted-host pypi.org --trusted-host files.pythonhosted.org --trusted-host pypi.python.org
+if errorlevel 1 (
+    echo  [AVISO] Algunos paquetes de timesfm no se instalaron correctamente.
+    echo          Revisa los mensajes anteriores.
+) else (
+    echo  [OK] timesfm instalado.
+)
+
+:timesfm_env_ready
+echo.
+
+REM ====================================================================
+REM  PASO 6: CHECKPOINT DE TimesFM 2.5
+REM ====================================================================
+echo ============================================================
+echo  [6/6] Comprobando checkpoint de TimesFM 2.5...
+echo ============================================================
+
+REM Umbral de tamano minimo (bytes) para dar el checkpoint por bueno --
+REM el real pesa ~925MB; cualquier cosa muy por debajo (p.ej. una pagina de
+REM bloqueo del proxy corporativo en vez del fichero real) se descarta.
+set FSIZE=0
+if exist "%MODEL_DIR%\model.safetensors" for %%A in ("%MODEL_DIR%\model.safetensors") do set FSIZE=%%~zA
+
+if %FSIZE% GEQ %MIN_SAFETENSORS_BYTES% (
+    echo  [INFO] El checkpoint ya existe en %MODEL_DIR% ^(%FSIZE% bytes^). Saltando descarga.
+    goto :timesfm_skip
+)
+
+if exist "%MODEL_DIR%\model.safetensors" (
+    echo  [AVISO] Hay un model.safetensors en %MODEL_DIR% pero pesa muy poco
+    echo          ^(%FSIZE% bytes^) -- no es el fichero real, se descarta y se
+    echo          vuelve a intentar la descarga.
+    del "%MODEL_DIR%\model.safetensors" >nul 2>&1
+)
+
+echo  [INFO] Descargando checkpoint (~925MB, puede tardar varios minutos)...
+echo.
+
+if not exist "%MODEL_DIR%" mkdir "%MODEL_DIR%"
+
+echo  Descargando config.json...
+curl -kL -o "%MODEL_DIR%\config.json" "%MODEL_REPO_URL%/config.json"
+if errorlevel 1 (
+    echo  [AVISO] curl fallo al descargar config.json.
+    goto :model_download_failed
+)
+
+echo  Descargando model.safetensors (~925MB, paciencia)...
+curl -kL -o "%MODEL_DIR%\model.safetensors" "%MODEL_REPO_URL%/model.safetensors"
+if errorlevel 1 (
+    echo  [AVISO] curl fallo al descargar model.safetensors.
+    goto :model_download_failed
+)
+
+REM Verificar que lo descargado sea el fichero real, no una pagina de
+REM bloqueo del proxy corporativo (Netskope) -- curl no distingue eso solo,
+REM devuelve "exito" igualmente porque la peticion HTTP en si no falla.
+set FSIZE=0
+for %%A in ("%MODEL_DIR%\model.safetensors") do set FSIZE=%%~zA
+if %FSIZE% LSS %MIN_SAFETENSORS_BYTES% (
+    echo  [AVISO] La descarga se completo pero el fichero pesa solo %FSIZE%
+    echo          bytes -- probablemente el proxy corporativo ha sustituido
+    echo          el fichero real por una pagina de bloqueo/aviso.
+    goto :model_download_failed
+)
+
+echo  [OK] Checkpoint descargado en %MODEL_DIR%.
+goto :timesfm_skip
+
+:model_download_failed
+echo.
+echo  ------------------------------------------------------------
+echo   Descarga automatica del checkpoint no disponible en esta red.
+echo   El resto de la app funcionara igual -- solo TimesFM no estara
+echo   disponible hasta que lo descargues. Alternativa manual:
+echo  ------------------------------------------------------------
+echo    1. Abre en tu navegador normal (el que ya usas cada dia):
+echo       https://huggingface.co/google/timesfm-2.5-200m-pytorch/tree/main
+echo    2. Descarga los dos ficheros: config.json y model.safetensors
+echo    3. Colocalos juntos en esta carpeta:
+echo       %MODEL_DIR%
+echo.
+
+:timesfm_skip
+echo.
+
+REM ====================================================================
 REM  VERIFICACION
 REM ====================================================================
 echo ============================================================
@@ -309,6 +432,16 @@ if errorlevel 1 echo  [AVISO] XGBoost no disponible
 python -c "import fastapi; print('  [OK] FastAPI', fastapi.__version__)" 2>nul
 if errorlevel 1 echo  [AVISO] FastAPI no disponible
 
+call "%CONDA_BASE%\Scripts\activate.bat" %TIMESFM_ENV_NAME% 2>nul
+python -c "import timesfm; print('  [OK] timesfm', getattr(timesfm, '__version__', 'n/d'))" 2>nul
+if errorlevel 1 echo  [AVISO] timesfm no disponible en %TIMESFM_ENV_NAME%
+
+if exist "%MODEL_DIR%\model.safetensors" (
+    echo  [OK] Checkpoint de TimesFM presente en %MODEL_DIR%
+) else (
+    echo  [AVISO] Checkpoint de TimesFM no encontrado en %MODEL_DIR%
+)
+
 echo.
 
 REM Crear acceso directo en escritorio
@@ -326,6 +459,9 @@ echo.
 echo  Para usar ForecastSEPE:
 echo    - Doble clic en ForecastSEPE.bat en el Escritorio
 echo    - Se abrira el navegador automaticamente
+echo    - ForecastSEPE.bat detecta solo los entornos (NP-LSTM-XGBoost y
+echo      timesfm_env) que encuentre instalados -- no hace falta editar
+echo      nada a mano.
 echo.
 echo  Para actualizar:
 echo    - Ejecuta este instalador de nuevo
