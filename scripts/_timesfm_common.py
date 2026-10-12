@@ -19,15 +19,19 @@ os.environ.setdefault('USE_TORCH', '1')
 
 ssl._create_default_https_context = ssl._create_unverified_context  # proxy corporativo Netskope
 
-import urllib3
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+try:
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-import requests
-_orig_request = requests.Session.request
-def _patched_request(self, *a, **kw):
-    kw.setdefault('verify', False)
-    return _orig_request(self, *a, **kw)
-requests.Session.request = _patched_request  # huggingface_hub < 1.0 usa requests por debajo
+    import requests
+    _orig_request = requests.Session.request
+    def _patched_request(self, *a, **kw):
+        kw.setdefault('verify', False)
+        return _orig_request(self, *a, **kw)
+    requests.Session.request = _patched_request  # huggingface_hub < 1.0 usa requests por debajo
+except ImportError:
+    pass  # huggingface_hub >= 2.x no depende de requests/urllib3 (usa httpx) --
+          # cubierto por el parche httpx de abajo
 
 try:
     import httpx
