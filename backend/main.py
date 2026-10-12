@@ -358,7 +358,7 @@ async def _stream_forecast(cmd: list):
                 emit({"type": "error",
                       "message": f"El intérprete de Python no existe o no es un fichero válido: "
                                  f"'{python_exe}'. Si es TimesFM, revisa el entorno timesfm_env "
-                                 f"(ejecuta INSTALAR_ForecastSEPE_v2.bat si falta)."})
+                                 f"(ejecuta INSTALAR_ForecastSEPE.bat si falta)."})
                 emit({"type": "done"})
                 return
 
