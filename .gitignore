@@ -1,4 +1,5 @@
 uploads/
+models/
 __pycache__/
 *.pyc
 *.pyo
