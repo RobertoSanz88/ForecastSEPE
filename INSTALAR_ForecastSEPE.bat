@@ -26,7 +26,7 @@ REM  CONFIGURACION
 REM ====================================================================
 set INSTALL_DIR=%USERPROFILE%\ForecastSEPE
 set MINICONDA_DIR=%USERPROFILE%\Miniconda3
-set GIT_DIR=%USERPROFILE%\PortableGit
+set PORTABLE_GIT_DIR=%USERPROFILE%\PortableGit
 set MINICONDA_URL=https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x86_64.exe
 set GIT_URL=https://github.com/git-for-windows/git/releases/download/v2.47.1.windows.1/PortableGit-2.47.1-64-bit.7z.exe
 set REPO_URL=https://github.com/RobertoSanz88/ForecastSEPE.git
@@ -168,9 +168,9 @@ if not errorlevel 1 (
 )
 
 REM Buscar Git Portable
-if exist "%GIT_DIR%\bin\git.exe" (
-    set GIT_EXE=%GIT_DIR%\bin\git.exe
-    echo  [OK] Git Portable encontrado en: %GIT_DIR%
+if exist "%PORTABLE_GIT_DIR%\bin\git.exe" (
+    set GIT_EXE=%PORTABLE_GIT_DIR%\bin\git.exe
+    echo  [OK] Git Portable encontrado en: %PORTABLE_GIT_DIR%
     goto :git_done
 )
 
@@ -188,19 +188,19 @@ if errorlevel 1 (
 )
 echo  [OK] Git Portable descargado.
 echo.
-echo  Descomprimiendo Git Portable en %GIT_DIR%...
+echo  Descomprimiendo Git Portable en %PORTABLE_GIT_DIR%...
 echo  (Esto puede tardar 1-2 minutos)
 echo.
 
-"%TEMP%\PortableGit-installer.exe" -o"%GIT_DIR%" -y
+"%TEMP%\PortableGit-installer.exe" -o"%PORTABLE_GIT_DIR%" -y
 if errorlevel 1 (
     echo  [ERROR] No se pudo descomprimir Git Portable.
     goto :error_exit
 )
 
 del "%TEMP%\PortableGit-installer.exe" >nul 2>&1
-set GIT_EXE=%GIT_DIR%\bin\git.exe
-echo  [OK] Git Portable instalado en %GIT_DIR%.
+set GIT_EXE=%PORTABLE_GIT_DIR%\bin\git.exe
+echo  [OK] Git Portable instalado en %PORTABLE_GIT_DIR%.
 
 :git_done
 REM Configurar SSL para git (Netskope)
@@ -444,12 +444,25 @@ if exist "%MODEL_DIR%\model.safetensors" (
 
 echo.
 
-REM Crear acceso directo en escritorio
+REM Crear acceso directo en escritorio -- resolver la ruta real via registro,
+REM %USERPROFILE%\Desktop no es fiable si el Escritorio esta redirigido a OneDrive
 echo  Creando acceso directo en el Escritorio...
-echo @echo off > "%USERPROFILE%\Desktop\ForecastSEPE.bat"
-echo cd /d "%INSTALL_DIR%" >> "%USERPROFILE%\Desktop\ForecastSEPE.bat"
-echo call "%INSTALL_DIR%\ForecastSEPE.bat" >> "%USERPROFILE%\Desktop\ForecastSEPE.bat"
-echo  [OK] Acceso directo creado: ForecastSEPE.bat en el Escritorio.
+set DESKTOP_DIR=
+for /f "tokens=2,*" %%A in ('reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders" /v Desktop 2^>nul') do set "DESKTOP_DIR=%%B"
+if not defined DESKTOP_DIR set DESKTOP_DIR=%USERPROFILE%\Desktop
+if not exist "%DESKTOP_DIR%" mkdir "%DESKTOP_DIR%" >nul 2>&1
+
+echo @echo off > "%DESKTOP_DIR%\ForecastSEPE.bat"
+echo cd /d "%INSTALL_DIR%" >> "%DESKTOP_DIR%\ForecastSEPE.bat"
+echo call "%INSTALL_DIR%\ForecastSEPE.bat" >> "%DESKTOP_DIR%\ForecastSEPE.bat"
+
+if exist "%DESKTOP_DIR%\ForecastSEPE.bat" (
+    echo  [OK] Acceso directo creado: %DESKTOP_DIR%\ForecastSEPE.bat
+) else (
+    echo  [AVISO] No se pudo crear el acceso directo en %DESKTOP_DIR%.
+    echo          Puedes lanzar la app ejecutando directamente:
+    echo          %INSTALL_DIR%\ForecastSEPE.bat
+)
 
 echo.
 echo  ============================================================
@@ -457,7 +470,7 @@ echo   INSTALACION COMPLETADA
 echo  ============================================================
 echo.
 echo  Para usar ForecastSEPE:
-echo    - Doble clic en ForecastSEPE.bat en el Escritorio
+echo    - Doble clic en el acceso directo "ForecastSEPE" creado en el Escritorio
 echo    - Se abrira el navegador automaticamente
 echo    - ForecastSEPE.bat detecta solo los entornos (NP-LSTM-XGBoost y
 echo      timesfm_env) que encuentre instalados -- no hace falta editar
