@@ -311,7 +311,7 @@ echo  Creando entorno %TIMESFM_ENV_NAME% (Python %TIMESFM_PYTHON_VER%)...
 "%CONDA_EXE%" create -n %TIMESFM_ENV_NAME% python=%TIMESFM_PYTHON_VER% -y --insecure
 if errorlevel 1 (
     echo  [AVISO] No se pudo crear el entorno %TIMESFM_ENV_NAME%.
-    echo          El resto de la app (NP/LSTM/XGBoost) funcionara igual --
+    echo          El resto de la app ^(NP/LSTM/XGBoost^) funcionara igual --
     echo          solo el modelo TimesFM no estara disponible.
     goto :timesfm_skip
 )
