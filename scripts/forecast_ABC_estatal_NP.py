@@ -74,7 +74,7 @@ def main():
         # n_changepoints: número de puntos de cambio de tendencia (más = más flexible)
         # seasonality_mode: 'additive' cuando la amplitud estacional es constante;
         #   'multiplicative' cuando crece o decrece proporcionalmente al nivel de la serie
-        param_grid = NP_ABC_ESTATAL_PARAMS['grid']
+        param_grid = NP_ABC_ESTATAL_PARAMS['grid_overrides'].get(metrica, NP_ABC_ESTATAL_PARAMS['grid'])
         grid = list(ParameterGrid(param_grid))
         print(f'Total de combinaciones a evaluar: {len(grid)}')
 
@@ -140,6 +140,12 @@ def main():
                       f"Val {val_df['ds'].iloc[0].strftime('%Y-%m')} → {val_df['ds'].iloc[-1].strftime('%Y-%m')}")
 
                 # 3.2. Entrenar fold — epochs en modo automático (coherente con el modelo final)
+                # Re-sembrar antes de cada fit: NeuralProphet/PyTorch solo respetan la semilla
+                # del ultimo set_random_seed() llamado, así que sin esto cada entrenamiento
+                # hereda el estado aleatorio dejado por el anterior -- el resultado de una
+                # combinación acaba dependiendo de en qué posición del grid se entrena (con
+                # cuántas combinaciones haya antes), no solo de sus propios hiperparámetros.
+                set_random_seed(11)
                 m_fold = NeuralProphet(
                     **params,
                     yearly_seasonality=True,
@@ -185,6 +191,7 @@ def main():
         print(f'PROGRESS:62:Entrenando el modelo final con hiperparámetros óptimos sobre todo el histórico...', flush=True)
 
         # epochs en modo automático (igual que en los folds de CV) para coherencia metodológica
+        set_random_seed(11)
         m_final = NeuralProphet(
             **best_params,
             yearly_seasonality=True,
@@ -225,6 +232,7 @@ def main():
             'pronostico':          pronostico,
             'intervalo_confianza': None,
             'mape':                round(float(best_mape), 2),
+            'hiperparametros':     best_params,
         }
 
         print('RESULT:' + json.dumps(result, ensure_ascii=False), flush=True)
