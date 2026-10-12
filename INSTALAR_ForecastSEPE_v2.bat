@@ -236,8 +236,8 @@ echo  ============================================================
 echo   INSTALACION INCREMENTAL COMPLETADA
 echo  ============================================================
 echo.
-echo  ForecastSEPE-v2-DEV.bat detecta este entorno automaticamente al
-echo  arrancar -- no hace falta que edites nada mas a mano.
+echo  ForecastSEPE.bat detecta este entorno automaticamente al arrancar
+echo  -- no hace falta que edites nada mas a mano.
 echo.
 echo  Pulsa una tecla para cerrar esta ventana...
 pause >nul
