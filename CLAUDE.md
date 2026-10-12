@@ -170,14 +170,17 @@ hacer push.
 
 Ambas pueden ejecutarse a la vez sin conflicto (puertos distintos).
 
-**TimesFM y el instalador v2:** `INSTALAR_ForecastSEPE.bat` (producción)
-solo monta el entorno `NP-LSTM-XGBoost` — NP/LSTM/XGBoost para todas las
-métricas siguen funcionando igual tras la fusión. TimesFM necesita su
-propio entorno conda (`timesfm_env`) y la variable `TIMESFM_PYTHON_EXE` en
-`.env`; sin eso, el backend responde con un error controlado explicando
-cómo instalarlo (`INSTALAR_ForecastSEPE_v2.bat`), sin afectar al resto de
-la app. **Pendiente: `INSTALAR_ForecastSEPE_v2.bat` no se ha probado aún en
-una máquina limpia** — hacerlo antes de anunciar TimesFM a los usuarios.
+**TimesFM:** `INSTALAR_ForecastSEPE.bat` (producción, instalador único)
+monta tanto `NP-LSTM-XGBoost` como el entorno `timesfm_env` + el checkpoint
+de TimesFM 2.5 (~925MB) en una sola pasada — ya no hay un instalador
+separado para TimesFM. Si el tramo de TimesFM falla (red, proxy
+corporativo), la instalación no se aborta: el resto de la app queda
+operativo igual, solo TimesFM queda pendiente de reintentar. `ForecastSEPE.bat`
+detecta `timesfm_env` solo al arrancar y fija `TIMESFM_PYTHON_EXE`; la
+variable `TIMESFM_PYTHON_EXE` en `.env` sigue funcionando como alternativa
+manual si la detección automática no encuentra el entorno. Sin ninguna de
+las dos, el backend responde con un error controlado, sin afectar al resto
+de la app.
 
 ## Dimensiones de UI
 - **Header:** 72px de alto, logo 44px, título 24px, subtítulo 13px

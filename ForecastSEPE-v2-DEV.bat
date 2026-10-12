@@ -121,7 +121,7 @@ if defined TIMESFM_PYTHON_EXE (
     echo  TimesFM: %TIMESFM_PYTHON_EXE%
 ) else (
     echo  TimesFM: entorno timesfm_env no encontrado -- ese modelo no estara disponible.
-    echo           Ejecuta INSTALAR_ForecastSEPE_v2.bat si lo necesitas.
+    echo           Ejecuta INSTALAR_ForecastSEPE.bat si lo necesitas.
 )
 
 REM --- Lanzar uvicorn en ventana separada ---
