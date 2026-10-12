@@ -371,6 +371,22 @@ async def _stream_forecast(cmd: list):
             # en Windows puede colgar el proceso en silencio (sin excepcion) al
             # cargar el modelo. Este workaround estandar evita el bloqueo.
             _env.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+            if python_exe != sys.executable:
+                # Entorno distinto del que lanzo uvicorn (p.ej. timesfm_env).
+                # Si la sesion que lanzo uvicorn ya tenia activado "base" u
+                # otro entorno conda (conda init en cmd.exe), el PATH heredado
+                # puede resolver antes una copia distinta e incompatible de
+                # las DLL de OpenMP/MKL/torch, favoreciendo el cuelgue
+                # silencioso de arriba incluso con KMP_DUPLICATE_LIB_OK.
+                # Antepone la carpeta del propio entorno para que sus DLL se
+                # encuentren primero, sin depender de que nadie lo active.
+                _env_dir = os.path.dirname(python_exe)
+                _env["PATH"] = os.pathsep.join([
+                    _env_dir,
+                    os.path.join(_env_dir, "Library", "bin"),
+                    os.path.join(_env_dir, "Scripts"),
+                    _env.get("PATH", ""),
+                ])
             proc = subprocess.Popen(
                 cmd,
                 stdin=subprocess.PIPE,
