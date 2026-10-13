@@ -153,12 +153,12 @@ echo.
 REM Aceptar Terms of Service de los canales por defecto de Anaconda --
 REM necesario en conda reciente para poder crear entornos sin preguntar;
 REM conda create -y fallaba antes con CondaToSNonInteractiveError si no
-REM se aceptaban antes. De momento sin silenciar la salida, para ver el
-REM motivo real si vuelve a fallar.
+REM se aceptaban antes. "--insecure" no es un argumento valido para este
+REM subcomando (a diferencia de "create"), por eso se quita aqui.
 echo  Aceptando Terms of Service de los canales de Anaconda...
-"%CONDA_EXE%" tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main --insecure
-"%CONDA_EXE%" tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r --insecure
-"%CONDA_EXE%" tos accept --override-channels --channel https://repo.anaconda.com/pkgs/msys2 --insecure
+"%CONDA_EXE%" tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
+"%CONDA_EXE%" tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
+"%CONDA_EXE%" tos accept --override-channels --channel https://repo.anaconda.com/pkgs/msys2
 echo.
 
 REM ====================================================================
