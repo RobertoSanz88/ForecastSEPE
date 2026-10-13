@@ -150,6 +150,15 @@ if not exist "%CONDA_BASE%\Scripts\activate.bat" (
 echo  [OK] activate.bat encontrado.
 echo.
 
+REM Aceptar Terms of Service de los canales por defecto de Anaconda --
+REM necesario en conda >= 25.x para poder crear entornos sin preguntar
+REM (conda create -y falla si no, con CondaToSNonInteractiveError).
+REM Silencioso: en versiones de conda sin el subcomando "tos" simplemente
+REM falla y se ignora, no rompe nada.
+"%CONDA_EXE%" tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main --insecure >nul 2>&1
+"%CONDA_EXE%" tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r --insecure >nul 2>&1
+"%CONDA_EXE%" tos accept --override-channels --channel https://repo.anaconda.com/pkgs/msys2 --insecure >nul 2>&1
+
 REM ====================================================================
 REM  PASO 2: GIT
 REM ====================================================================
