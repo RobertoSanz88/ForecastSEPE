@@ -108,6 +108,22 @@ if exist "C:\ProgramData\miniconda3\Scripts\conda.exe" (
 REM No encontrado - instalar Miniconda
 echo  [INFO] conda no encontrado. Instalando Miniconda...
 echo.
+
+REM Un .condarc de una instalacion anterior de Anaconda o Miniconda en
+REM este PC puede estar corrupto -- por ejemplo con una clave duplicada
+REM -- y hacer fallar el arranque del Miniconda nuevo antes incluso de
+REM llegar a nuestro propio script. Se aparta con una copia de seguridad
+REM para que la instalacion empiece limpia.
+if exist "%USERPROFILE%\.condarc" (
+    echo  [INFO] Se ha encontrado un .condarc previo en tu carpeta de usuario.
+    echo         Podria estar corrupto por una instalacion anterior de
+    echo         Anaconda o Miniconda. Se aparta con una copia de seguridad.
+    if not exist "%USERPROFILE%\.condarc.bak-forecastsepe" copy /y "%USERPROFILE%\.condarc" "%USERPROFILE%\.condarc.bak-forecastsepe" >nul 2>&1
+    del "%USERPROFILE%\.condarc" >nul 2>&1
+    echo  [OK] Copia de seguridad en %USERPROFILE%\.condarc.bak-forecastsepe
+    echo.
+)
+
 echo  Descargando Miniconda (~100 MB)...
 echo  (Esto puede tardar unos minutos)
 echo.
