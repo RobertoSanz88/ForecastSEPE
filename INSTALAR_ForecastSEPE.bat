@@ -244,9 +244,19 @@ echo ============================================================
 
 if exist "%INSTALL_DIR%\.git" (
     echo  [INFO] El repositorio ya existe en %INSTALL_DIR%.
-    echo         Actualizando con git pull...
+    echo         Sincronizando con la ultima version de GitHub...
     cd /d "%INSTALL_DIR%"
-    "%GIT_EXE%" pull
+    "%GIT_EXE%" fetch origin
+    if errorlevel 1 (
+        echo  [ERROR] No se pudo contactar con el repositorio de GitHub.
+        echo          Comprueba tu conexion a internet.
+        goto :error_exit
+    )
+    "%GIT_EXE%" reset --hard origin/main
+    if errorlevel 1 (
+        echo  [ERROR] No se pudo sincronizar la carpeta local con GitHub.
+        goto :error_exit
+    )
     echo  [OK] Repositorio actualizado.
     goto :repo_done
 )
@@ -505,7 +515,8 @@ echo      nada a mano.
 echo.
 echo  Para actualizar:
 echo    - Ejecuta este instalador de nuevo
-echo    - Detectara que ya esta instalado y hara git pull
+echo    - Detectara que ya esta instalado y sincronizara tu carpeta
+echo      con la ultima version de GitHub
 echo.
 echo  Pulsa una tecla para cerrar esta ventana...
 pause >nul
