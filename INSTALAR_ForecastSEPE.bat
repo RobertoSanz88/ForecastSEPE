@@ -434,9 +434,10 @@ echo   Descarga automatica del checkpoint no disponible en esta red.
 echo   El resto de la app funcionara igual -- solo TimesFM no estara
 echo   disponible hasta que lo descargues. Alternativa manual:
 echo  ------------------------------------------------------------
-echo    1. Abre en tu navegador normal (el que ya usas cada dia):
-echo       https://huggingface.co/google/timesfm-2.5-200m-pytorch/tree/main
-echo    2. Descarga los dos ficheros: config.json y model.safetensors
+echo    1. Entra en Teams, equipo "Proyecciones", carpeta "ForecastSEPE",
+echo       y dentro busca la carpeta "TimesFM 2.5".
+echo    2. Descarga los dos ficheros que hay ahi: config.json y
+echo       model.safetensors
 echo    3. Colocalos juntos en esta carpeta:
 echo       %MODEL_DIR%
 echo.
