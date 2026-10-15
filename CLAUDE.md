@@ -43,7 +43,8 @@ Todos los scripts están implementados con modelos reales.
 | ABC   | Parados, Afiliados, Demandantes | NP, LSTM | forecast_ABC_*_{NP,LSTM}.py |
 | DE    | Contratos, P. Contratadas | NP, XGBoost | forecast_DE_*_{NP,XGBoost}.py |
 
-**Regla:** XGBoost solo para DE. LSTM solo para ABC. NP para todos.
+**Regla:** XGBoost solo para DE. LSTM solo para ABC. NP y TimesFM para todos
+(TimesFM: un único script por modo, `forecast_ABCDE_{estatal,atributo}_TimesFM.py`).
 
 **SCRIPT_MAP en backend/main.py:** clave `(grupo, modo, modelo)` → nombre de fichero.
 
@@ -144,31 +145,26 @@ Este proyecto se ejecuta detrás de un proxy SSL corporativo. Ver `CLAUDE.md` de
 
 ## Lanzar la app
 ```
-start.bat           # Windows: usa entorno NP-LSTM-XGBoost, abre navegador, lanza uvicorn en :8000
-"C:\Users\sgei044\NP-LSTM-XGBoost\python.exe" -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
+ForecastSEPE.bat    # Windows: usa entorno NP-LSTM-XGBoost, abre navegador, lanza uvicorn en :8001
+"C:\Users\sgei044\NP-LSTM-XGBoost\python.exe" -m uvicorn backend.main:app --host 0.0.0.0 --port 8001
 ```
 
-## Versionado y desarrollo paralelo (v1.0 → v2.0)
+## Versionado (v1.0 → v2.0)
 
-**`main` es ahora la versión 2.0** (fusionada desde `v2.0-dev`, tag `v2.0`).
-Sigue siendo la rama de producción: los usuarios finales del SEPE la
-instalan/actualizan vía `INSTALAR_ForecastSEPE.bat` (clona/hace `git pull`
-sobre `main`). El tag `v1.0` (commit `602f4c9`) queda como referencia
-histórica de la versión anterior a esta fusión.
+**`main` es la versión 2.0** (tag `v2.0`) y la rama de producción: los
+usuarios finales del SEPE la instalan/actualizan vía
+`INSTALAR_ForecastSEPE.bat` (clona/hace `git pull` sobre `main`). El tag
+`v1.0` (commit `602f4c9`) queda como referencia histórica de la versión
+anterior.
 
-El desarrollo sigue viviendo en la rama `v2.0-dev`, en el **git worktree**
-`C:\Users\rsanz\ForecastSEPE-v2` — comparte el mismo `.git` que
-`C:\Users\rsanz\ForecastSEPE` (`main`), así que no hay dos historiales que
-sincronizar a mano. El flujo para cambios futuros sigue siendo el mismo:
-desarrollar en `v2.0-dev`, fusionar a `main` cuando esté listo, etiquetar y
-hacer push.
+La rama `v2.0-dev` y su worktree `ForecastSEPE-v2` ya no existen (cerrados
+tras la fusión). Solo hay una carpeta de trabajo:
+`C:\Users\rsanz\ForecastSEPE` (rama `main`), lanzador `ForecastSEPE.bat`,
+puerto 8001.
 
-| Carpeta | Rama | Lanzador | Puerto |
-|---------|------|----------|--------|
-| `C:\Users\rsanz\ForecastSEPE` | `main` | `ForecastSEPE.bat` | 8001 |
-| `C:\Users\rsanz\ForecastSEPE-v2` | `v2.0-dev` | `ForecastSEPE-v2-DEV.bat` | 8766 |
-
-Ambas pueden ejecutarse a la vez sin conflicto (puertos distintos).
+**Desarrollo futuro:** se hará en una rama nueva `v3` (no directamente en
+`main`), que se fusionará a `main` cuando esté lista, con su tag y push.
+Mientras tanto, los cambios a `main` son solo correcciones de la 2.0.
 
 **TimesFM:** `INSTALAR_ForecastSEPE.bat` (producción, instalador único)
 monta tanto `NP-LSTM-XGBoost` como el entorno `timesfm_env` + el checkpoint
