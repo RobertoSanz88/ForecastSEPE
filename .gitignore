@@ -14,3 +14,7 @@ lightning_logs/
 *.ckpt
 
 _dev_tools/
+
+# Detalles del entorno corporativo (no versionar)
+CLAUDE.md
+certs/
