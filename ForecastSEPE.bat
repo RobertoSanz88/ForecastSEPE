@@ -45,6 +45,13 @@ if defined SSL_CERT (
 REM --- Buscar Python del entorno NP-LSTM-XGBoost ---
 set PYTHON_EXE=
 
+REM Runtime incluido por el instalador (ForecastSEPE_Setup): tiene prioridad
+REM sobre cualquier conda del PC. En una instalacion por git no existe.
+if exist "%PROJECT_DIR%runtime\np_env\python.exe" (
+    set PYTHON_EXE=%PROJECT_DIR%runtime\np_env\python.exe
+    goto :python_found
+)
+
 if exist "%USERPROFILE%\Miniconda3\envs\NP-LSTM-XGBoost\python.exe" (
     set PYTHON_EXE=%USERPROFILE%\Miniconda3\envs\NP-LSTM-XGBoost\python.exe
     goto :python_found
@@ -93,7 +100,10 @@ echo  Python: %PYTHON_EXE%
 REM --- Buscar Python del entorno timesfm_env (opcional -- modelo TimesFM) ---
 set TIMESFM_PYTHON_EXE=
 
-if exist "%USERPROFILE%\Miniconda3\envs\timesfm_env\python.exe" (
+if exist "%PROJECT_DIR%runtime\timesfm_env\python.exe" (
+    set TIMESFM_PYTHON_EXE=%PROJECT_DIR%runtime\timesfm_env\python.exe
+)
+if not defined TIMESFM_PYTHON_EXE if exist "%USERPROFILE%\Miniconda3\envs\timesfm_env\python.exe" (
     set TIMESFM_PYTHON_EXE=%USERPROFILE%\Miniconda3\envs\timesfm_env\python.exe
 )
 if not defined TIMESFM_PYTHON_EXE if exist "%USERPROFILE%\miniconda3\envs\timesfm_env\python.exe" (
